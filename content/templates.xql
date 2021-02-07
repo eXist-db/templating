@@ -464,9 +464,7 @@ declare %private function templates:process-surround($node as node(), $content a
             $node
 };
 
-declare
-    %templates:wrap
-function templates:each($node as node(), $model as map(*), $from as xs:string, $to as xs:string) {
+declare function templates:each($node as node(), $model as map(*), $from as xs:string, $to as xs:string) {
     for $item in $model($from)
     return
         element { node-name($node) } {
