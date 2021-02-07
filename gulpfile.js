@@ -35,7 +35,7 @@ const static = [
 // test application metadata
 const testAppNs = "http://exist-db.org/html-templating-test"
 const testAppFiles = ['test/app/*.*', "test/app/modules/*"]
-const testAppPackageName = "templating-test.xar"
+const testAppPackageName = "test-templating.xar"
 
 // construct the current xar name from available data
 const packageName = () => `${package.target}-${version}.xar`

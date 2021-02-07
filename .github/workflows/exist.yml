@@ -61,7 +61,8 @@ jobs:
         run: docker create  --name exist-ci -p 8080:8080 existdb/existdb:${{ matrix.exist-version }} 
 
       - name: Prep CI Container
-        run: docker cp ./*.xar exist-ci:exist/autodeploy
+      - run: docker cp ./templating-*.xar exist-ci:exist/autodeploy
+      - run: docker cp ./test-templating.xar exist-ci:exist/autodeploy
 
       - name: Start Exist Container
         run: docker start exist-ci && sleep 30
