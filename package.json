@@ -33,6 +33,7 @@
   },
   "license": "LGPL-3.0",
   "scripts": {
+    "start": "npm install && npm run build",
     "test": "gulp install:all && mocha test/mocha --recursive --exit",
     "test:watch": "mocha test/mocha --recursive --watch",
     "build": "gulp build",

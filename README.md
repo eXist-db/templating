@@ -5,9 +5,22 @@
 ![exist-db CI](https://github.com/eXist-db/templating/workflows/exist-db%20CI/badge.svg)
 [![Coverage percentage][coveralls-image]][coveralls-url]
 
-<img src="icon.png" align="left" width="25%"/>
+# eXist HTML Templating Library
 
-eXist-db HTML Templating Library
+This repository hosts the HTML templating library for eXist, which was previously part of the *shared-resources* package. *shared-resources* is now deprecated and users should upgrade their code. The new package intends to be backwards compatible: the namespace URI of the module has changed to avoid conflicts, but existing template functions will continue to work.
+
+## Upgrading from *shared-resources*
+
+1. change any dependency on `shared-resources` in your `expath-pkg.xml` to point to this package:
+
+    ```xml
+    <dependency package="http://exist-db.org/html-templating" semver-min="1.0.0"/>
+    ```
+2. update the module URI for any imports of the templating module:
+
+    ```xquery
+    import module namespace templates="http://exist-db.org/xquery/html-templating";
+    ```
 
 ## Requirements
 
@@ -17,7 +30,7 @@ eXist-db HTML Templating Library
 
 ## Installation
 
-1.  Download  the `templating-1.0.0.xar` file from GitHub [releases](https://github.com/eXist-db/templating/releases) page.
+1.  Install the *eXist-db HTML Templating Library* package from eXist's package repository via the [dashboard](http://localhost:8080/exist/apps/dashboard/index.html), or download  the `templating-1.0.0.xar` file from GitHub [releases](https://github.com/eXist-db/templating/releases) page.
 
 2.  Open the [dashboard](http://localhost:8080/exist/apps/dashboard/index.html) of your eXist-db instance and click on `package manager`.
 
@@ -28,47 +41,24 @@ eXist-db HTML Templating Library
 ### Building from source
 
 1.  Download, fork or clone this GitHub repository
-2.  There are two default build targets in `build.xml`:
-    *   `dev` including *all* files from the source folder including those with potentially sensitive information.
-  
-    *   `deploy` is the official release. It excludes files necessary for development but that have no effect upon deployment.
-  
-3.  Calling `ant`in your CLI will build both files:
+2.  Calling `npm start` in your CLI will install required dependencies from npm and create a `.xar`:
   
 ```bash
 cd templating
-ant
+npm start
 ```
 
-   1. to only build a specific target call either `dev` or `deploy` like this:
-   ```bash   
-   ant dev
-   ```   
-
-If you see `BUILD SUCCESSFUL` ant has generated a `templating-1.0.0.xar` file in the `build/` folder. To install it, follow the instructions [above](#installation).
-
-
+To install it, follow the instructions [above](#installation).
 
 ## Running Tests
 
-To run tests locally your app needs to be installed in a running exist-db instance at the default port `8080` and with the default dba user `admin` with the default empty password.
-
-A quick way to set this up for docker users is to simply issue:
-
-```bash
-docker run -dit -p 8080:8080 existdb/existdb:release
-```
-
-After you finished installing the application, you can run the full testsuite locally.
-
-### Unit-tests
-
-This app uses [mochajs](https://mochajs.org) as a test-runner. To run both xquery and javascript unit-tests type:
+This app uses [mochajs](https://mochajs.org) as a test-runner. To run the tests type:
 
 ```bash
 npm test
 ```
 
+This will automatically build and install the library plus a test application into your local eXist, assuming it can be reached on `http://localhost:8080/exist`. If this is not the case, edit `.existdb.json` and change the properties for the `localhost` server to match your setup.
 
 ## Contributing
 
