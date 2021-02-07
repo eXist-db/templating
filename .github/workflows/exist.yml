@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      - run: npm build:all
+      - run: npm run build:all
       
       # Deploy Package in Container
       - name: Pull Base Image
