@@ -10,6 +10,42 @@ declare option output:media-type "text/html";
 
 declare 
     %templates:wrap
+function test:init-data($node as node(), $model as map(*)) {
+    let $addresses := (
+        map {
+            "name": "Berta Muh",
+            "street": "An der Viehtränke 13",
+            "city": "Kuhweide"
+        },
+        map {
+            "name": "Rudi Rüssel",
+            "street": "Am Zoo 45",
+            "city": "Tierheim"
+        }
+    )
+    return map {
+        "addresses": $addresses
+    }
+};
+
+declare 
+    %templates:wrap
+function test:print-name($node as node(), $model as map(*)) {
+    $model("address")?name
+};
+declare 
+    %templates:wrap
+function test:print-city($node as node(), $model as map(*)) {
+    $model("address")?city
+};
+declare 
+    %templates:wrap
+function test:print-street($node as node(), $model as map(*)) {
+    $model("address")?street
+};
+
+declare 
+    %templates:wrap
     %templates:default("language", "en")
 function test:hello($node as node(), $model as map(*), $language as xs:string) {
     switch($language)

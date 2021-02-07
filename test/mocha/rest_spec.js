@@ -80,6 +80,50 @@ describe('expand HTML template', function () {
   });
 });
 
+describe('Supports template nesting', function() {
+  it('handles nested templates', async function() {
+    const res = await axiosInstance.get('nesting.html');  
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+
+    expect(window.document.querySelector('tr:nth-child(1) td[data-template="test:print-name"]').innerHTML).to.equal('Berta Muh');
+    expect(window.document.querySelector('tr:nth-child(2) td[data-template="test:print-street"]').innerHTML).to.equal('Am Zoo 45');
+  });
+});
+
+describe('Supports form fields', function() {
+  it('injects form field values', async function() {
+    const res = await axiosInstance.get('forms.html', {
+      params: {
+        param1: 'xxx',
+        param2: 'value2',
+        param3: true,
+        param4: 'radio2'
+      }
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+
+    // default parameter value applies
+    const control1 = window.document.querySelector('input[name="param1"]');
+    expect(control1).to.exist;
+    expect(control1.value).to.equal('xxx');
+
+    const control2 = window.document.querySelector('select[name="param2"]');
+    expect(control2).to.exist;
+    expect(control2.value).to.equal('value2');
+
+    const control3 = window.document.querySelector('input[name="param3"]');
+    expect(control3).to.exist;
+    expect(control3.checked).to.be.true;
+
+    const control4 = window.document.querySelectorAll('input[name="param4"]');
+    expect(control4).to.have.length(2);
+    expect(control4[0].checked).to.be.false;
+    expect(control4[1].checked).to.be.true;
+  });
+});
+
 describe('Fail if template is missing', function() {
   it('fails if template could not be found', function () {
     return axiosInstance.get('template-missing.html')
