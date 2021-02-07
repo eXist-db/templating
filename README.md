@@ -2,7 +2,7 @@
 
 [![License][license-img]][license-url]
 [![GitHub release][release-img]][release-url]
-![exist-db CI](https://github.com/wolfgangmm/templating/workflows/exist-db%20CI/badge.svg)
+![exist-db CI](https://github.com/eXist-db/templating/workflows/exist-db%20CI/badge.svg)
 [![Coverage percentage][coveralls-image]][coveralls-url]
 
 <img src="icon.png" align="left" width="25%"/>
@@ -13,14 +13,11 @@ eXist-db HTML Templating Library
 
 *   [exist-db](http://exist-db.org/exist/apps/homepage/index.html) version: `5.x` or greater
 
-*   [ant](http://ant.apache.org) version: `1.10.7` \(for building from source\)
-
 *   [node](http://nodejs.org) version: `12.x` \(for building from source\)
-    
 
 ## Installation
 
-1.  Download  the `templating-1.0.0.xar` file from GitHub [releases](https://github.com/wolfgangmm/templating/releases) page.
+1.  Download  the `templating-1.0.0.xar` file from GitHub [releases](https://github.com/eXist-db/templating/releases) page.
 
 2.  Open the [dashboard](http://localhost:8080/exist/apps/dashboard/index.html) of your eXist-db instance and click on `package manager`.
 
@@ -72,20 +69,6 @@ This app uses [mochajs](https://mochajs.org) as a test-runner. To run both xquer
 npm test
 ```
 
-### Integration-tests
-
-This app uses [cypress](https://www.cypress.io) for integration tests, just type:
-
-```bash
-npm run cypress
-```
-
-Alternatively, use npx:
-
-```bash
-npx cypress open
-```
-
 
 ## Contributing
 
@@ -98,6 +81,6 @@ LGPL-3.0 © [eXist-db Project](http://exist-db.org)
 [license-img]: https://img.shields.io/badge/license-LGPL%20v3-blue.svg
 [license-url]: https://www.gnu.org/licenses/lgpl-3.0
 [release-img]: https://img.shields.io/badge/release-1.0.0-green.svg
-[release-url]: https://github.com/wolfgangmm/templating/releases/latest
-[coveralls-image]: https://coveralls.io/repos/wolfgangmm/templating/badge.svg
-[coveralls-url]: https://coveralls.io/r/wolfgangmm/templating
+[release-url]: https://github.com/eXist-db/templating/releases/latest
+[coveralls-image]: https://coveralls.io/repos/eXist-db/templating/badge.svg
+[coveralls-url]: https://coveralls.io/r/eXist-db/templating

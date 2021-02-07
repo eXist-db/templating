@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<meta xmlns="http://exist-db.org/xquery/repo">
+  <description>HTML Templating for eXist - Test Application</description>
+  <author>The eXist Project</author>
+  <website>http://exist-db.org</website>
+  <status>stable</status>
+  <license>GPL-3.0</license>
+  <copyright>true</copyright>
+  <type>application</type>
+  <target>templating-test</target>
+</meta>

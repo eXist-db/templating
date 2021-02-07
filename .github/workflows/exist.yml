@@ -12,8 +12,7 @@ jobs:
     strategy:
        matrix:
          exist-version: [latest, release]
-         java-version: [8]
-         node-version: [12.x, 14.x]
+         node-version: [14.x]
     # TODO: see #563 could still be usefull for gulp builds 
     # services:
     #   # Label used to access the service container
@@ -52,14 +51,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      
-      # Build Expath Package 
-      # TODO: #563 make optional for gulp builds
-      - name: Build Expath Package
-        uses: actions/setup-java@v1
-        with:
-          java-version: ${{ matrix.java-version }}
-      - run: ant 
       
       # Deploy Package in Container
       - name: Pull Base Image
