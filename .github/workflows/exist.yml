@@ -51,6 +51,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
+      - run: npm build:all
       
       # Deploy Package in Container
       - name: Pull Base Image
@@ -60,7 +61,7 @@ jobs:
         run: docker create  --name exist-ci -p 8080:8080 existdb/existdb:${{ matrix.exist-version }} 
 
       - name: Prep CI Container
-        run: docker cp ./build/*-dev.xar exist-ci:exist/autodeploy
+        run: docker cp ./*.xar exist-ci:exist/autodeploy
 
       - name: Start Exist Container
         run: docker start exist-ci && sleep 30
