@@ -19,13 +19,13 @@
         ]
     },
     "package": {
-        "author": "eXist-db Project Team",
+        "author": "eXist-db Project",
         "target": "templating",
         "description": "HTML Templating Library for eXist-db",
         "namespace": "http://exist-db.org/html-templating",
         "website": "https://github.com/eXist-db/templating",
         "status": "stable",
         "title": "eXist-db HTML Templating Library",
-        "license": "GPLv3"
+        "license": "LGPL-2.1"
     }
 }
