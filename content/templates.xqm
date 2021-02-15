@@ -13,7 +13,6 @@ module namespace templates="http://exist-db.org/xquery/html-templating";
 import module namespace inspect="http://exist-db.org/xquery/inspection" at "java:org.exist.xquery.functions.inspect.InspectionModule";
 import module namespace map="http://www.w3.org/2005/xpath-functions/map";
 import module namespace request="http://exist-db.org/xquery/request";
-import module namespace repo="http://exist-db.org/xquery/repo";
 import module namespace session="http://exist-db.org/xquery/session";
 import module namespace util="http://exist-db.org/xquery/util";
 
@@ -536,54 +535,6 @@ declare function templates:if-module-missing($node as node(), $model as map(*), 
         (: Module was not found: process content :)
         templates:process($node/node(), $model)
     }
-};
-
-(: NOTE: to be moved to separate module, because:
-    1) Makes an expectation on eXide being present. Only useable if eXide is present.
-    2) Limits use to specifics of REST Server and URL Rewrite!
-    If desirable for use with eXide should be implemented elsewhere, perhaps in a module that includes the templates module?!?
-:)
-declare function templates:load-source($node as node(), $model as map(*)) as node()* {
-    let $href := $node/@href/string()
-    let $link := templates:link-to-app("http://exist-db.org/apps/eXide", "index.html?open=" || templates:get-app-root($model) || "/" || $href)
-    return
-        element { node-name($node) } {
-            attribute href { $link },
-            attribute target { "eXide" },
-            attribute class { "eXide-open" },
-            attribute data-exide-open { templates:get-app-root($model) || "/" || $href },
-            $node/node()
-        }
-};
-
-(: NOTE: To be moved to separate module, because:
-    1) Only used by commented out function templates:load-source (see above)
-    2) Makes an expectation on eXide being present. Only useable if eXide is present.
-    3) Limits use to specifics of REST Server and URL Rewrite!
-    If desirable for use with eXide should be implemented elsewhere, perhaps in a module that includes the templates module?!?
-:)
-(:~
- : Locates the package identified by $uri and returns a path which can be used to link
- : to this package from within the HTML view of another package.
- :
- : $uri the unique name of the package to locate
- : $relLink a relative path to be added to the returned path
- :)
-declare function templates:link-to-app($uri as xs:string, $relLink as xs:string?) as xs:string {
-    let $app := templates:resolve($uri)
-    let $path := string-join((request:get-context-path(), request:get-attribute("$exist:prefix"), $app, $relLink), "/")
-    return
-        replace($path, "/+", "/")
-};
-
-(: NOTE: to be moved to separate module. :)
-declare function templates:resolve($uri as xs:string) as xs:string? {
-    let $path := collection(repo:get-root())//expath:package[@name = $uri]
-    return
-        if ($path) then
-            substring-after(util:collection-name($path), repo:get-root())
-        else
-            ()
 };
 
 (:~
