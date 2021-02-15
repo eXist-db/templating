@@ -24,7 +24,7 @@ This repository hosts the HTML templating library for eXist, which was previousl
 
 ## Requirements
 
-*   [exist-db](http://exist-db.org/exist/apps/homepage/index.html) version: `5.x` or greater
+*   [exist-db](http://exist-db.org/exist/apps/homepage/index.html) version: `5.2.0` or greater
 
 *   [node](http://nodejs.org) version: `12.x` \(for building from source\)
 
