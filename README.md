@@ -16,10 +16,16 @@ This repository hosts the HTML templating library for eXist, which was previousl
     ```xml
     <dependency package="http://exist-db.org/html-templating" semver-min="1.0.0"/>
     ```
-2. update the module URI for any imports of the templating module:
+2. update the module URI for any imports of the templating module. The new URI is:
 
     ```xquery
     import module namespace templates="http://exist-db.org/xquery/html-templating";
+    ```
+
+    New standard templating functions will go into a separate module, so you may want to add the following import in addition to the one above, which will give you access to the `lib:parse-params` template function (and others in the future):
+
+    ```xquery
+    import module namespace lib="http://exist-db.org/xquery/html-templating/lib";
     ```
 
 ## Requirements

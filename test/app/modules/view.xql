@@ -4,6 +4,7 @@ declare namespace test="https://exist-db.org/xquery/html-templating/test";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 
 import module namespace templates="http://exist-db.org/xquery/html-templating";
+import module namespace lib="http://exist-db.org/xquery/html-templating/lib";
 
 declare option output:method "html5";
 declare option output:media-type "text/html";
@@ -24,7 +25,13 @@ function test:init-data($node as node(), $model as map(*)) {
         }
     )
     return map {
-        "addresses": $addresses
+        "addresses": $addresses,
+        "data": map {
+            "test": "TEST1",
+            "nested": map {
+                "test": "TEST2"
+            }
+        }
     }
 };
 

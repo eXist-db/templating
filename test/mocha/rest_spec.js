@@ -137,6 +137,77 @@ describe('Supports set and unset param', function() {
     });
 });
 
+describe("Supports parsing parameters", function () {
+	it("supports parsing parameters in attributes and text", async function () {
+		const res = await axiosInstance.get(
+			"parse-params.html",
+			{
+        params: {
+          description: 'my title',
+          link: 'foo'
+        }
+      }
+		);
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+    const link = window.document.querySelector("a");
+    expect(link).to.exist;
+		expect(link.title).to.equal('Link: my title');
+    expect(link.href).to.equal('/api/foo/');
+	});
+
+  it("supports expanding from model", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title",
+				link: "foo",
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+		const para = window.document.getElementById('nested');
+		expect(para).to.exist;
+		expect(para.innerHTML).to.equal("Out: TEST2");
+
+    const li = window.document.querySelectorAll('li');
+    expect(li).to.have.lengthOf(2);
+    expect(li[0].innerHTML).to.equal("Berta Muh, Kuhweide");
+    expect(li[1].innerHTML).to.equal("Rudi Rüssel, Tierheim");
+  });
+
+  it("fails gracefully", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title",
+				link: "foo",
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+    const para = window.document.getElementById('default');
+    expect(para).to.exist;
+    expect(para.innerHTML).to.equal("not found;not found;");
+  });
+
+  it("serializes maps and arrays to JSON", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title",
+				link: "foo",
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+		const para = window.document.getElementById("map");
+		expect(para).to.exist;
+		expect(para.innerHTML).to.equal('{"test":"TEST2"}');
+  });
+});
+
 describe('Fail if template is missing', function() {
   it('fails if template could not be found', function () {
     return axiosInstance.get('template-missing.html')
