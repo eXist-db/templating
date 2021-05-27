@@ -11,6 +11,75 @@ module namespace lib="http://exist-db.org/xquery/html-templating/lib";
 import module namespace templates="http://exist-db.org/xquery/html-templating";
 
 (:~
+ : Include an HTML fragment from another file as given in parameter $path.
+ : The children (if any) of the including element (i.e. the one triggering the lib:include function)
+ : are merged into the included content. To define where a child element should be
+ : inserted, you must use a @data-target attribute referencing an HTML id which must exist
+ : within the included fragment. If @data-target is missing, the element will be discarded. 
+ : 
+ : This is a mechanism to inject content from the including element into the included content. For example, if the same menu
+ : or toolbar is included into every page of an application, but some pages should have
+ : additional options, you can use lib:include with lib:block to define the additional HTML
+ : to be inserted in a specific place.
+ :
+ : This is an extended version of templates:include.
+ :)
+declare function lib:include($node as node(), $model as map(*), $path as xs:string) {
+    let $appRoot := templates:get-app-root($model)
+    let $root := templates:get-root($model)
+    let $path :=
+        if (starts-with($path, "/")) then
+            (: Search template relative to app root :)
+            concat($appRoot, "/", $path)
+        else if (matches($path, "^https?://")) then
+            (: Template is loaded from a URL, this template even if a HTML file, must be
+               returned with mime-type XML and be valid XML, as it is retrieved with fn:doc() :)
+            $path
+        else
+            (: Locate template relative to HTML file :)
+            concat($root, "/", $path)
+    let $doc := doc($path)
+    return
+        if ($doc) then
+            templates:process(lib:expand-blocks($node, $doc), $model)
+        else
+            <p>Include not found: {$path}</p>
+};
+
+(:~
+ : Collect the children of the current element into a map, grouped by @data-target.
+ : Then call lib:expand-blocks-recursive to replace the corresponding target nodes
+ : in the included content with the collected HTML nodes.
+ :)
+declare %private function lib:expand-blocks($context as node(), $included as document-node()) {
+    map:merge(
+        for $blocks in $context/*[@data-target]
+        group by $name := $blocks/@data-target
+        return
+            map:entry($name, $blocks)
+    )
+    => lib:expand-blocks-recursive($included)
+};
+
+declare %private function lib:expand-blocks-recursive($blocks as map(*), $nodes as node()*) {
+    for $node in $nodes
+    return
+        typeswitch ($node)
+            case document-node() return
+                lib:expand-blocks-recursive($blocks, $node/node())
+            case element() return
+                if ($node/@id and map:contains($blocks, $node/@id)) then
+                    $blocks($node/@id)
+                else
+                    element { node-name($node) } {
+                        $node/@*,
+                        lib:expand-blocks-recursive($blocks, $node/node())
+                    }
+            default return
+                $node
+};
+
+(:~
  : Recursively expand template expressions appearing in attributes or text content,
  : trying to expand them from request/session parameters or the current model.
  :

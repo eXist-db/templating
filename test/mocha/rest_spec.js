@@ -217,3 +217,25 @@ describe('Fail if template is missing', function() {
       });
   });
 });
+
+describe("Supports including another file", function () {
+	it("replaces target blocks in included file", async function () {
+		const res = await axiosInstance.get(
+			"includes.html",
+			{
+        params: {
+          title: 'my title'
+        }
+      }
+		);
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+    const items = window.document.querySelectorAll("li");
+    expect(items).to.have.lengthOf(4);
+    expect(items[0].getAttribute('title')).to.equal('my title');
+    expect(items[0].innerHTML).to.equal('Block inserted at "start"');
+    expect(items[1].innerHTML).to.equal('First');
+    expect(items[3].innerHTML).to.equal('Block inserted at "end"');
+  });
+});

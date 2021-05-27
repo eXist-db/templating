@@ -9,6 +9,21 @@ import module namespace lib="http://exist-db.org/xquery/html-templating/lib";
 declare option output:method "html5";
 declare option output:media-type "text/html";
 
+declare variable $test:app-root :=
+    let $rawPath := system:get-module-load-path()
+    let $modulePath :=
+    (: strip the xmldb: part :)
+    if (starts-with($rawPath, "xmldb:exist://")) then
+        if (starts-with($rawPath, "xmldb:exist://embedded-eXist-server")) then
+            substring($rawPath, 36)
+        else
+            substring($rawPath, 15)
+    else
+        $rawPath
+    return
+        substring-before($modulePath, "/modules")
+;
+
 declare 
     %templates:wrap
 function test:init-data($node as node(), $model as map(*)) {
@@ -81,6 +96,7 @@ declare function test:custom-model($node as node(), $model as map(*)) {
 };
 
 let $config := map {
+    $templates:CONFIG_APP_ROOT : $test:app-root,
     $templates:CONFIG_STOP_ON_ERROR: true()
 }
 let $lookup := function($name as xs:string, $arity as xs:integer) {

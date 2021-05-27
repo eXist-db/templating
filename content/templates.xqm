@@ -376,6 +376,9 @@ declare function templates:get-root($model as map(*)) as xs:string? {
  : Standard templates
  :-----------------------------------------------------------------------------------:)
 
+(:~
+ : @deprecated use lib:include instead
+ :)
 declare function templates:include($node as node(), $model as map(*), $path as xs:string) {
     let $appRoot := templates:get-app-root($model)
     let $root := templates:get-root($model)
