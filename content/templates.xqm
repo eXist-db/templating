@@ -472,18 +472,18 @@ declare function templates:each($node as node(), $model as map(*), $from as xs:s
 };
 
 declare function templates:if-parameter-set($node as node(), $model as map(*), $param as xs:string) as node()* {
-    let $param := templates:get-configuration($model, "templates:if-parameter-set")($templates:CONFIG_PARAM_RESOLVER)($param)
+    let $values := templates:get-configuration($model, "templates:if-parameter-set")($templates:CONFIG_PARAM_RESOLVER)($param)
     return
-        if ($param and string-length($param) gt 0) then
+        if (exists($values) and string-length(string-join($values)) gt 0) then
             templates:process($node/node(), $model)
         else
             ()
 };
 
 declare function templates:if-parameter-unset($node as node(), $model as item()*, $param as xs:string) as node()* {
-    let $param := templates:get-configuration($model, "templates:if-parameter-unset")($templates:CONFIG_PARAM_RESOLVER)($param)
+    let $values := templates:get-configuration($model, "templates:if-parameter-unset")($templates:CONFIG_PARAM_RESOLVER)($param)
     return
-        if (not($param) or string-length($param) eq 0) then
+        if (empty($values) or string-length(string-join($values)) eq 0) then
             templates:process($node/node(), $model)
         else
             ()

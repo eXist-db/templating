@@ -124,6 +124,19 @@ describe('Supports form fields', function() {
   });
 });
 
+describe('Supports set and unset param', function() {
+  it('supports set and unset with multiple params of the same name', async function() {
+    const res = await axiosInstance.get('set-unset-params.html?foo=bar&foo=baz'
+    // if URL parameters are supplied via params object, mocha will only send one param 
+    // of a given name, so we must include params in the query string
+    );
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    
+    expect(window.document.querySelector('p#set')).to.exist;
+    });
+});
+
 describe('Fail if template is missing', function() {
   it('fails if template could not be found', function () {
     return axiosInstance.get('template-missing.html')
