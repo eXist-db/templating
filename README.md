@@ -9,6 +9,10 @@
 
 This repository hosts the HTML templating library for eXist, which was previously part of the *shared-resources* package. *shared-resources* is now deprecated and users should upgrade their code. The new package intends to be backwards compatible: the namespace URI of the module has changed to avoid conflicts, but existing template functions will continue to work.
 
+## Documentation
+
+A detailed documentation for this package can be found in the [eXist-db documentation app](http://exist-db.org/exist/apps/doc/templating.xml).
+
 ## Upgrading from *shared-resources*
 
 1. change any dependency on `shared-resources` in your `expath-pkg.xml` to point to this package:
@@ -72,10 +76,10 @@ You can take a look at the [Contribution guidelines for this project](.github/CO
 
 ## License
 
-LGPL-3.0 © [eXist-db Project](http://exist-db.org)
+LGPL-2.1 © [eXist-db Project](http://exist-db.org)
 
-[license-img]: https://img.shields.io/badge/license-LGPL%20v3-blue.svg
-[license-url]: https://www.gnu.org/licenses/lgpl-3.0
+[license-img]: https://img.shields.io/badge/license-LGPL%20v2.1-blue.svg
+[license-url]: https://www.gnu.org/licenses/old-licenses/lgpl-2.1
 [release-img]: https://img.shields.io/badge/release-1.0.0-green.svg
 [release-url]: https://github.com/eXist-db/templating/releases/latest
 [coveralls-image]: https://coveralls.io/repos/eXist-db/templating/badge.svg

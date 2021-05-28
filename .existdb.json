@@ -21,7 +21,7 @@
     "package": {
         "author": "eXist-db Project",
         "target": "templating",
-        "description": "HTML Templating Library for eXist-db",
+        "description": "This package contains the HTML templating library for eXist, which was previously part of the now deprecated 'shared-resources'",
         "namespace": "http://exist-db.org/html-templating",
         "website": "https://github.com/eXist-db/templating",
         "status": "stable",
