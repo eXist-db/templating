@@ -9,6 +9,10 @@
 
 This repository hosts the HTML templating library for eXist, which was previously part of the *shared-resources* package. *shared-resources* is now deprecated and users should upgrade their code. The new package intends to be backwards compatible: the namespace URI of the module has changed to avoid conflicts, but existing template functions will continue to work.
 
+## Documentation
+
+A detailed documentation for this package can be found in the [eXist-db documentation app](http://exist-db.org/exist/apps/doc/templating.xml).
+
 ## Upgrading from *shared-resources*
 
 1. change any dependency on `shared-resources` in your `expath-pkg.xml` to point to this package:
@@ -16,15 +20,21 @@ This repository hosts the HTML templating library for eXist, which was previousl
     ```xml
     <dependency package="http://exist-db.org/html-templating" semver-min="1.0.0"/>
     ```
-2. update the module URI for any imports of the templating module:
+2. update the module URI for any imports of the templating module. The new URI is:
 
     ```xquery
     import module namespace templates="http://exist-db.org/xquery/html-templating";
     ```
 
+    New standard templating functions will go into a separate module, so you may want to add the following import in addition to the one above, which will give you access to the `lib:parse-params` template function (and others in the future):
+
+    ```xquery
+    import module namespace lib="http://exist-db.org/xquery/html-templating/lib";
+    ```
+
 ## Requirements
 
-*   [exist-db](http://exist-db.org/exist/apps/homepage/index.html) version: `5.x` or greater
+*   [exist-db](http://exist-db.org/exist/apps/homepage/index.html) version: `5.2.0` or greater
 
 *   [node](http://nodejs.org) version: `12.x` \(for building from source\)
 
@@ -66,10 +76,10 @@ You can take a look at the [Contribution guidelines for this project](.github/CO
 
 ## License
 
-LGPL-3.0 © [eXist-db Project](http://exist-db.org)
+LGPL-2.1 © [eXist-db Project](http://exist-db.org)
 
-[license-img]: https://img.shields.io/badge/license-LGPL%20v3-blue.svg
-[license-url]: https://www.gnu.org/licenses/lgpl-3.0
+[license-img]: https://img.shields.io/badge/license-LGPL%20v2.1-blue.svg
+[license-url]: https://www.gnu.org/licenses/old-licenses/lgpl-2.1
 [release-img]: https://img.shields.io/badge/release-1.0.0-green.svg
 [release-url]: https://github.com/eXist-db/templating/releases/latest
 [coveralls-image]: https://coveralls.io/repos/eXist-db/templating/badge.svg

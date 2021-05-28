@@ -28,10 +28,9 @@
     "yeoman-assert": "^3.1.1"
   },
   "author": {
-    "name": "eXist-db Project",
-    "email": "wolfgang@exist-db.org"
+    "name": "eXist-db Project"
   },
-  "license": "LGPL-3.0",
+  "license": "LGPL-2.1",
   "scripts": {
     "start": "npm install && npm run build",
     "test": "gulp install:all && mocha test/mocha --recursive --exit",
@@ -42,7 +41,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/eXist-db/templating",
-    "license": "LGPL-3.0"
+    "license": "LGPL-2.1"
   },
   "funding": {
     "type": "opencollective",

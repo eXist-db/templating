@@ -124,6 +124,90 @@ describe('Supports form fields', function() {
   });
 });
 
+describe('Supports set and unset param', function() {
+  it('supports set and unset with multiple params of the same name', async function() {
+    const res = await axiosInstance.get('set-unset-params.html?foo=bar&foo=baz'
+    // if URL parameters are supplied via params object, mocha will only send one param 
+    // of a given name, so we must include params in the query string
+    );
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    
+    expect(window.document.querySelector('p#set')).to.exist;
+    });
+});
+
+describe("Supports parsing parameters", function () {
+	it("supports parsing parameters in attributes and text", async function () {
+		const res = await axiosInstance.get(
+			"parse-params.html",
+			{
+        params: {
+          description: 'my title',
+          link: 'foo'
+        }
+      }
+		);
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+    const link = window.document.querySelector("a");
+    expect(link).to.exist;
+		expect(link.title).to.equal('Link: my title');
+    expect(link.href).to.equal('/api/foo/');
+	});
+
+  it("supports expanding from model", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title",
+				link: "foo",
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+		const para = window.document.getElementById('nested');
+		expect(para).to.exist;
+		expect(para.innerHTML).to.equal("Out: TEST2");
+
+    const li = window.document.querySelectorAll('li');
+    expect(li).to.have.lengthOf(2);
+    expect(li[0].innerHTML).to.equal("Berta Muh, Kuhweide");
+    expect(li[1].innerHTML).to.equal("Rudi Rüssel, Tierheim");
+  });
+
+  it("fails gracefully", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title",
+				link: "foo",
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+    const para = window.document.getElementById('default');
+    expect(para).to.exist;
+    expect(para.innerHTML).to.equal("not found;not found;");
+  });
+
+  it("serializes maps and arrays to JSON", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title",
+				link: "foo",
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+		const para = window.document.getElementById("map");
+		expect(para).to.exist;
+		expect(para.innerHTML).to.equal('{"test":"TEST2"}');
+  });
+});
+
 describe('Fail if template is missing', function() {
   it('fails if template could not be found', function () {
     return axiosInstance.get('template-missing.html')
@@ -131,5 +215,27 @@ describe('Fail if template is missing', function() {
         expect(error.response.status).to.equal(400);
         expect(error.response.data).to.contain('templates:NotFound');
       });
+  });
+});
+
+describe("Supports including another file", function () {
+	it("replaces target blocks in included file", async function () {
+		const res = await axiosInstance.get(
+			"includes.html",
+			{
+        params: {
+          title: 'my title'
+        }
+      }
+		);
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+    const items = window.document.querySelectorAll("li");
+    expect(items).to.have.lengthOf(4);
+    expect(items[0].getAttribute('title')).to.equal('my title');
+    expect(items[0].innerHTML).to.equal('Block inserted at "start"');
+    expect(items[1].innerHTML).to.equal('First');
+    expect(items[3].innerHTML).to.equal('Block inserted at "end"');
   });
 });
