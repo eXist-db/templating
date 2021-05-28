@@ -42,5 +42,9 @@
     "type": "git",
     "url": "https://github.com/eXist-db/templating",
     "license": "LGPL-2.1"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/existdb"
   }
 }
