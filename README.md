@@ -76,7 +76,7 @@ You can take a look at the [Contribution guidelines for this project](.github/CO
 
 ## License
 
-LGPL-2.1 © [eXist-db Project](http://exist-db.org)
+LGPL-2.1 Copyright (C) 2001 [The eXist-db Authors](http://exist-db.org)
 
 [license-img]: https://img.shields.io/badge/license-LGPL%20v2.1-blue.svg
 [license-url]: https://www.gnu.org/licenses/old-licenses/lgpl-2.1
