@@ -269,6 +269,7 @@ describe("Supports including another file", function () {
 });
 
 describe("Supports resolving app location", function() {
+  this.timeout(10000);
   it("replaces target blocks in included file", async function () {
 		const res = await axiosInstance.get("resolve-apps.html");
 		expect(res.status).to.equal(200);
