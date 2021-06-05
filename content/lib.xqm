@@ -8,7 +8,50 @@ xquery version "3.1";
 :)
 module namespace lib="http://exist-db.org/xquery/html-templating/lib";
 
+declare namespace expath="http://expath.org/ns/pkg";
+
 import module namespace templates="http://exist-db.org/xquery/html-templating";
+
+(:~
+ : Resolve the expath application package identified by $abbrev. If an installed
+ : application is found, a property is added to the model. The name of the property
+ : will correspond to $abbrev and its value to the absolute URI path at which the
+ : root of the application can be found.
+ :
+ : Use e.g. with lib:parse-params to expand URLs.
+ :
+ : $abbrev may list more than one package abbreviation separated by ",".
+ :
+ : @returns an absolute URI path or request:get-context-path() || "/404.html#" if not found
+ :)
+declare 
+    %templates:wrap
+function lib:resolve-apps($node as node(), $model as map(*), $abbrev as xs:string) {
+    let $abbrevs := tokenize($abbrev, '\s*,\s*')
+    return
+        map:merge(
+            for $abbrev in $abbrevs
+            return
+                map:entry($abbrev, lib:resolve-app($abbrev))
+        )
+};
+
+declare %private function lib:resolve-app($abbrev as xs:string) {
+    let $root := repo:get-root()
+    let $pkg := collection($root)//expath:package[@abbrev = $abbrev]
+        (: Make sure the expath-pkg.xml is immediately below the app root collection :)
+        [matches(util:collection-name(.), $root || "/?[^/]+$")]
+    return
+        if ($pkg) then
+            string-join((
+                request:get-context-path(), 
+                request:get-attribute("$exist:prefix"), 
+                "/",
+                substring-after(util:collection-name($pkg), repo:get-root())
+            ))
+        else
+            request:get-context-path() || "/404.html#"
+};
 
 (:~
  : Include an HTML fragment from another file as given in parameter $path.
@@ -83,7 +126,10 @@ declare %private function lib:expand-blocks-recursive($blocks as map(*), $nodes 
  : Recursively expand template expressions appearing in attributes or text content,
  : trying to expand them from request/session parameters or the current model.
  :
- : Template expressions should have the form ${paramName:default text}.
+ : Template expressions by default should have the form ${paramName:default text}.
+ : You can change the used delimiters from `${` and `}` to something else by
+ : overwriting the parameters $start and $end.
+ :
  : Specifying a default is optional. If there is no default and the parameter
  : cannot be expanded, the empty string is output.
  :
@@ -94,46 +140,51 @@ declare %private function lib:expand-blocks-recursive($blocks as map(*), $nodes 
  : The templating function should fail gracefully if a parameter or map lookup cannot
  : be resolved, a lookup resolves to multiple items, a map or an array.
  :)
-declare function lib:parse-params($node as node(), $model as map(*)) {
-    element { node-name($node) } {
-        lib:expand-attributes($node/@* except $node/@data-template, $model),
-        lib:expand-params($node/node(), $model)
-    }
-    => templates:process($model)
+declare 
+    %templates:default("start", "\$\{")
+    %templates:default("end", "\}")
+function lib:parse-params($node as node(), $model as map(*), $start as xs:string?, $end as xs:string?) {
+    let $delimiters := [$start, $end]
+    return
+        element { node-name($node) } {
+            lib:expand-attributes($node/@* except $node/@data-template, $model, $delimiters),
+            lib:expand-params($node/node(), $model, $delimiters)
+        }
+        => templates:process($model)
 };
 
-declare %private function lib:expand-params($nodes as node()*, $model as map(*)) {
+declare %private function lib:expand-params($nodes as node()*, $model as map(*), $delimiters as array(*)) {
     for $node in $nodes
     return
         typeswitch($node)
             case element() return
                 element { node-name($node) } {
-                    lib:expand-attributes($node/@*, $model),
-                    lib:expand-params($node/node(), $model)
+                    lib:expand-attributes($node/@*, $model, $delimiters),
+                    lib:expand-params($node/node(), $model, $delimiters)
                 }
             case text() return
-                if (matches($node, "\$\{[^\}]+\}")) then
-                    text { lib:expand-text($node, $model) }
+                if (matches($node, $delimiters?1 || ".+?" || $delimiters?2)) then
+                    text { lib:expand-text($node, $model, $delimiters) }
                 else
                     $node
             default return
                 $node
 };
 
-declare %private function lib:expand-attributes($attrs as attribute()*, $model as map(*)) {
+declare %private function lib:expand-attributes($attrs as attribute()*, $model as map(*), $delimiters as array(*)) {
     for $attr in $attrs
     return
-        if (matches($attr, "\$\{[^\}]+\}")) then
+        if (matches($attr, $delimiters?1 || ".+?" || $delimiters?2)) then
             attribute { node-name($attr) } {
-                lib:expand-text($attr, $model)
+                lib:expand-text($attr, $model, $delimiters)
             }
         else
             $attr
 };
 
-declare %private function lib:expand-text($text as xs:string, $model as map(*)) {
+declare %private function lib:expand-text($text as xs:string, $model as map(*), $delimiters as array(*)) {
     string-join(
-        let $parsed := analyze-string($text, "\$\{([^\}]+?)(?::([^\}]+))?\}")
+        let $parsed := analyze-string($text, $delimiters?1 || "(.+?)(?::(.+?))?" || $delimiters?2)
         for $token in $parsed/node()
         return
             typeswitch($token)

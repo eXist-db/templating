@@ -29,6 +29,8 @@ describe('expand HTML template', function () {
     expect(window.document.querySelector('h1.static-lang').innerHTML).to.equal('Witam');
 
     expect(window.document.querySelector('.custom').innerHTML).to.equal('Custom model item: xxx');
+
+    expect(window.document.querySelector('.default-param').innerHTML).to.equal('fallback');
   });
 
   it('request parameter overwrites static default', async function () {
@@ -77,6 +79,14 @@ describe('expand HTML template', function () {
         expect(error.response.status).to.equal(400);
         expect(error.response.data).to.contain('templates:TypeError');
       });
+  });
+
+  it("reports missing template functions", async function () {
+		return axiosInstance.get("missing-tmpl.html")
+			.catch((error) => {
+				expect(error.response.status).to.equal(400);
+				expect(error.response.data).to.contain("templates:NotFound");
+			});
   });
 });
 
@@ -206,6 +216,24 @@ describe("Supports parsing parameters", function () {
 		expect(para).to.exist;
 		expect(para.innerHTML).to.equal('{"test":"TEST2"}');
   });
+
+  it("handles different delimiters", async function () {
+		const res = await axiosInstance.get("parse-params.html", {
+			params: {
+				description: "my title"
+			},
+		});
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+
+		let para = window.document.getElementById("delimiters1");
+		expect(para).to.exist;
+		expect(para.innerHTML).to.equal('my title');
+
+    para = window.document.getElementById("delimiters2");
+	  expect(para).to.exist;
+	  expect(para.innerHTML).to.equal("TITLE: my title");
+  });
 });
 
 describe('Fail if template is missing', function() {
@@ -237,5 +265,15 @@ describe("Supports including another file", function () {
     expect(items[0].innerHTML).to.equal('Block inserted at "start"');
     expect(items[1].innerHTML).to.equal('First');
     expect(items[3].innerHTML).to.equal('Block inserted at "end"');
+  });
+});
+
+describe("Supports resolving app location", function() {
+  it("replaces target blocks in included file", async function () {
+		const res = await axiosInstance.get("resolve-apps.html");
+		expect(res.status).to.equal(200);
+		const { window } = new JSDOM(res.data);
+    const para = window.document.querySelector("p");
+    expect(para.innerHTML).to.equal("/exist/apps/templating-test");
   });
 });

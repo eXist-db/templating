@@ -81,6 +81,13 @@ function test:hello($node as node(), $model as map(*), $language as xs:string) {
 
 declare 
     %templates:wrap
+    %templates:default("defaultParam", "fallback")
+function test:default($node as node(), $model as map(*), $defaultParam as xs:string) {
+    $defaultParam
+};
+
+declare 
+    %templates:wrap
 function test:numbers($node as node(), $model as map(*), $n1 as xs:integer, $n2 as xs:double) {
     ($n1 treat as xs:integer) + ($n2 treat as xs:double)
 };
