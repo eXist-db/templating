@@ -270,11 +270,14 @@ describe("Supports including another file", function () {
 
 describe("Supports resolving app location", function() {
   this.timeout(10000);
-  it("replaces target blocks in included file", async function () {
+  it("replaces variable with app URL", async function () {
 		const res = await axiosInstance.get("resolve-apps.html");
 		expect(res.status).to.equal(200);
 		const { window } = new JSDOM(res.data);
-    const para = window.document.querySelector("p");
+    let para = window.document.getElementById('test1');
     expect(para.innerHTML).to.equal("/exist/apps/templating-test");
+
+    para = window.document.getElementById("test2");
+	  expect(para.innerHTML).to.equal("/exist/404.html#");
   });
 });

@@ -9,6 +9,7 @@ xquery version "3.1";
 module namespace lib="http://exist-db.org/xquery/html-templating/lib";
 
 declare namespace expath="http://expath.org/ns/pkg";
+declare namespace repo="http://exist-db.org/xquery/repo";
 
 import module namespace templates="http://exist-db.org/xquery/html-templating";
 
@@ -27,30 +28,37 @@ import module namespace templates="http://exist-db.org/xquery/html-templating";
 declare 
     %templates:wrap
 function lib:resolve-apps($node as node(), $model as map(*), $abbrev as xs:string) {
-    let $abbrevs := tokenize($abbrev, '\s*,\s*')
-    return
-        map:merge(
-            for $abbrev in $abbrevs
+    let $abbrevList := tokenize($abbrev, '\s*,\s*')
+    return map:merge(
+        for $abbrev in $abbrevList
+        let $pkg :=
+            for $uri in repo:list()
+            let $expath := 
+                try {
+                    repo:get-resource($uri, "expath-pkg.xml") => util:binary-to-string() => parse-xml()
+                } catch * {
+                    ()
+                }
             return
-                map:entry($abbrev, lib:resolve-app($abbrev))
-        )
-};
-
-declare %private function lib:resolve-app($abbrev as xs:string) {
-    let $root := repo:get-root()
-    let $pkg := collection($root)//expath:package[@abbrev = $abbrev]
-        (: Make sure the expath-pkg.xml is immediately below the app root collection :)
-        [matches(util:collection-name(.), $root || "/?[^/]+$")]
-    return
-        if ($pkg) then
-            string-join((
-                request:get-context-path(), 
-                request:get-attribute("$exist:prefix"), 
-                "/",
-                substring-after(util:collection-name($pkg), repo:get-root())
-            ))
-        else
-            request:get-context-path() || "/404.html#"
+                $expath/expath:package[@abbrev = $abbrev]
+        let $url :=
+            if ($pkg) then
+                let $repo := repo:get-resource($pkg/@name, "repo.xml") => util:binary-to-string() => parse-xml()
+                return
+                    if ($repo) then
+                        string-join((
+                            request:get-context-path(), 
+                            request:get-attribute("$exist:prefix"), 
+                            "/",
+                            $repo//repo:target
+                        ))
+                    else
+                        request:get-context-path() || "/404.html#"
+            else
+                request:get-context-path() || "/404.html#"
+        return
+            map:entry($abbrev, $url)
+    )
 };
 
 (:~
