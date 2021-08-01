@@ -12,7 +12,7 @@
         <ul data-template="templates:each" data-template-from="addresses" data-template-to="address">
             <li data-template="lib:parse-params">${address?name}, ${address?city}</li>
         </ul>
-        <p id="delimiters1" data-template="lib:parse-params" data-template-start="\{">{description}</p>
-        <p id="delimiters2" data-template="lib:parse-params" data-template-start="\[\[" data-template-end="\]\]">TITLE: [[description]]</p>
+        <p id="delimiters1" data-template="lib:parse-params" data-template-delim-start="\{">{description}</p>
+        <p id="delimiters2" data-template="lib:parse-params" data-template-delim-start="\[\[" data-template-delim-end="\]\]">TITLE: [[description]]</p>
     </body>
 </html>
