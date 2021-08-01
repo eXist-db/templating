@@ -201,7 +201,6 @@ declare %private function lib:expand-text($text as xs:string, $model as map(*), 
                     let $paramName := $token/fn:group[1]/string()
                     let $default := $token/fn:group[2]/string()
                     let $param := $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER)($paramName)
-                    let $log := util:log('INFO', $paramName || " = " || $param)
                     let $values :=
                         if (exists($param)) then
                             $param
