@@ -108,7 +108,8 @@ describe('Supports form fields', function() {
         param1: 'xxx',
         param2: 'value2',
         param3: true,
-        param4: 'radio2'
+        param4: 'checkbox2',
+        param5: 'radio2'
       }
     });
     expect(res.status).to.equal(200);
@@ -131,6 +132,11 @@ describe('Supports form fields', function() {
     expect(control4).to.have.length(2);
     expect(control4[0].checked).to.be.false;
     expect(control4[1].checked).to.be.true;
+    
+    const control5 = window.document.querySelectorAll('input[name="param5"]');
+    expect(control5).to.have.length(2);
+    expect(control5[0].checked).to.be.false;
+    expect(control5[1].checked).to.be.true;
   });
 });
 

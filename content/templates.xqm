@@ -560,12 +560,16 @@ declare function templates:form-control($node as node(), $model as map(*)) as no
             let $name := $node/@name
             let $value := templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($name)
             return
-                if ($value) then
+                if (exists($value)) then
                     switch ($type)
-                        case "checkbox" case "radio" return
+                        case "checkbox" 
+                        case "radio" return
                             element { node-name($node) } {
                                 $node/@* except $node/@checked,
-                                attribute checked { "checked" },
+                                if ($node/@value = $value or $value = "true") then
+                                    attribute checked { "checked" }
+                                else
+                                    (),
                                 $node/node()
                             }
                         default return
