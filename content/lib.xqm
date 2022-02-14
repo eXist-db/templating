@@ -136,7 +136,7 @@ declare %private function lib:expand-blocks-recursive($blocks as map(*), $nodes 
  :
  : Template expressions by default should have the form ${paramName:default text}.
  : You can change the used delimiters from `${` and `}` to something else by
- : overwriting the parameters $delim-start and $delim-end.
+ : overwriting the parameters $start and $end.
  :
  : Specifying a default is optional. If there is no default and the parameter
  : cannot be expanded, the empty string is output.
@@ -149,10 +149,10 @@ declare %private function lib:expand-blocks-recursive($blocks as map(*), $nodes 
  : be resolved, a lookup resolves to multiple items, a map or an array.
  :)
 declare 
-    %templates:default("delim-start", "\$\{")
-    %templates:default("delim-end", "\}")
-function lib:parse-params($node as node(), $model as map(*), $delim-start as xs:string?, $delim-end as xs:string?) {
-    let $delimiters := [$delim-start, $delim-end]
+    %templates:default("start", "\$\{")
+    %templates:default("end", "\}")
+function lib:parse-params($node as node(), $model as map(*), $start as xs:string?, $end as xs:string?) {
+    let $delimiters := [$start, $end]
     return
         element { node-name($node) } {
             lib:expand-attributes($node/@* except $node/@data-template, $model, $delimiters),
