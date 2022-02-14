@@ -1,11 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<meta 
-  xmlns="http://exist-db.org/xquery/repo">
-  <description>@description@</description>
-  <author>@author@</author>
-  <website>@website@</website>
-  <status>@status@</status>
-  <license>@license@</license>
-  <copyright>true</copyright>
-  <type>library</type>
+<meta xmlns="http://exist-db.org/xquery/repo">
+    <description>@description@</description>
+    <author>@author@</author>
+    <website>@website@</website>
+    <status>@status@</status>
+    <license>@license@</license>
+    <copyright>true</copyright>
+    <type>library</type>
+    <changelog>
+        <change version="1.0.4">
+            <ul xmlns="http://www.w3.org/1999/xhtml">
+                <li>Fix form control: radio button &amp; checkbox inputs - <a href="https://github.com/eXist-db/templating/pull/9">#9</a></li>
+                <li>Performance boost by eliminating not() - <a href="https://github.com/eXist-db/templating/pull/10">#10</a></li>
+                <li>Reverted "rename static params 'start' and 'end'" commit, as these were discovered to be a breaking change - <a href="https://github.com/eXist-db/templating/pull/13">#13</a></li>
+            </ul>
+        </change>
+        <change version="1.0.3">
+            <ul xmlns="http://www.w3.org/1999/xhtml">
+                <li>fix(lib:parse-params): rename static params 'start' and 'end' to 'delim-start' and 'delim-end', so it's less likely that they conflict with frequently used, user provided parameters.</li>
+                <li>Note: this version was not released to GitHub Releases or the eXist-db public-repo.</li>
+            </ul>
+        </change>
+        <change version="1.0.2">
+            <ul xmlns="http://www.w3.org/1999/xhtml">
+                <li>Replace lib:resolve-apps with a faster version.</li>
+            </ul>
+        </change>
+        <change version="1.0.1">
+            <ul xmlns="http://www.w3.org/1999/xhtml">
+                <li>Change author strings.</li>
+            </ul>
+        </change>
+        <change version="1.0.0">
+            <ul xmlns="http://www.w3.org/1999/xhtml">
+                <li>First release of the new HTML templating package. This now hosts the templating library which was previously shipped with the shared-resources package.</li>
+            </ul>
+        </change>
+    </changelog>
 </meta>
