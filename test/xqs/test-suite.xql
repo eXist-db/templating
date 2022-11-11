@@ -23,10 +23,11 @@ declare namespace test="http://exist-db.org/xquery/xqsuite";
  :)
 declare variable $tt:template :=
     <html>
-        <body data-template="tt:tf">
+        <body data-template="tt:tf" class="body" data-extra="7">
             <ul>
-                <li data-template="templates:each" data-template-from="data" data-template-to="item">
-                    <span data-template="tt:n"></span>
+                <li data-template="templates:each" data-template-from="data" data-template-to="item"
+                    data-extra="23" class="item">
+                    <span data-template="tt:n" data-extra="42" class="value"></span>
                 </li>
             </ul>
         </body>
@@ -78,6 +79,18 @@ function tt:get-template-attribute-values ($xml as node()) {
     $xml//@*[starts-with(local-name(.), $templates:ATTR_DATA_TEMPLATE)]/string()
 };
 
+declare
+    %private
+function tt:get-extra-data-attribute-values ($xml as node()) {
+    $xml//@data-extra/string()
+};
+
+declare
+    %private
+function tt:get-class-attribute-values ($xml as node()) {
+    $xml//@class/string()
+};
+
 (:
  : ---------------------------
  : TEMPLATING
@@ -126,6 +139,28 @@ function tt:attributes-filtered-a() {
         $tt:config-filter
     )
     => tt:get-template-attribute-values()
+};
+
+declare
+    %test:assertEquals("7", "23", "42", "23", "42")
+function tt:attributes-filtered-a-extra() {
+    templates:apply(
+        $tt:template, tt:lookup#2,
+        map { 'data': $tt:data//a }, 
+        $tt:config-filter
+    )
+    => tt:get-extra-data-attribute-values()
+};
+
+declare
+    %test:assertEquals("body", "item", "value", "item", "value")
+function tt:attributes-filtered-a-class() {
+    templates:apply(
+        $tt:template, tt:lookup#2,
+        map { 'data': $tt:data//a }, 
+        $tt:config-filter
+    )
+    => tt:get-class-attribute-values()
 };
 
 declare
