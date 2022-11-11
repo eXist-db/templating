@@ -63,7 +63,7 @@ declare variable $tt:config-no-filter := map {
 };
 
 (: parameters cannot be resolved with default resolver in XQSuite context :)
-declare function tt:resolver ($m) {};
+declare function tt:resolver ($m) { () };
 
 declare function tt:lookup ($fn as xs:string, $arity as xs:integer) as function(*)? {
     function-lookup(xs:QName($fn), $arity)
