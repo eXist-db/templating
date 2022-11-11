@@ -14,58 +14,104 @@ const axiosInstance = axios.create({
   baseURL: app
 });
 
-describe('expand HTML template', function () {
+describe('expand HTML template index.html', function () {
+  let document, res
 
-  it('handles default and static parameters', async function () {
-    const res = await axiosInstance.get('index.html');  
+  before(async function () {
+    res = await axiosInstance.get('index.html');  
+    const {window} = new JSDOM(res.data);
+    document = window.document
+  })
+
+  it('returns status ok', async function () {
     expect(res.status).to.equal(200);
-    const { window } = new JSDOM(res.data);
-
-    // default parameter value applies
-    expect(window.document.querySelector('h1.no-lang')).to.exist;
-    expect(window.document.querySelector('h1.no-lang').innerHTML).to.equal('Welcome');
-    // statically defined parameter
-    expect(window.document.querySelector('h1.static-lang')).to.exist;
-    expect(window.document.querySelector('h1.static-lang').innerHTML).to.equal('Witam');
-
-    expect(window.document.querySelector('.custom').innerHTML).to.equal('Custom model item: xxx');
-
-    expect(window.document.querySelector('.default-param').innerHTML).to.equal('fallback');
+    expect(document).to.be.ok;
   });
 
-  it('request parameter overwrites static default', async function () {
-    const res = await axiosInstance.get('index.html', {
+  it('handles default parameters', async function () {
+    // default parameter value applies
+    expect(document.querySelector('h1.no-lang')).to.exist;
+    expect(document.querySelector('h1.no-lang').innerHTML).to.equal('Welcome');
+  });
+
+  it('handles static parameters', async function () {
+      // statically defined parameter
+    expect(document.querySelector('h1.static-lang')).to.exist;
+    expect(document.querySelector('h1.static-lang').innerHTML).to.equal('Witam');
+  });
+
+  it('handles custom model items', async function () {
+    expect(document.querySelector('.custom').innerHTML).to.equal('Custom model item: xxx');
+  });
+
+  it('handles fallbacks', async function () {
+    expect(document.querySelector('.default-param').innerHTML).to.equal('fallback');
+  });
+});
+
+describe('expand HTML template index.html with language parameter set', function () {
+  let document, res
+
+  before(async function () {
+    res = await axiosInstance.get('index.html', {
       params: {
         language: 'de'
       }
     });
-    expect(res.status).to.equal(200);
     const { window } = new JSDOM(res.data);
+    document = window.document
+  })
 
-    // default parameter value applies
-    expect(window.document.querySelector('h1.no-lang')).to.exist;
-    expect(window.document.querySelector('h1.no-lang').innerHTML).to.equal('Willkommen');
-    // statically defined parameter
-    expect(window.document.querySelector('h1.static-lang')).to.exist;
-    expect(window.document.querySelector('h1.static-lang').innerHTML).to.equal('Willkommen');
+  it('request returns with status 200', async function () {
+    expect(res.status).to.equal(200);
+    expect(document).to.be.ok;
   });
 
-  it('converts parameter types', async function () {
-    const res = await axiosInstance.get('types.html', {
+  it('request parameter overwrites default', async function () {
+    // default parameter value applies
+    expect(document.querySelector('h1.no-lang')).to.exist;
+    expect(document.querySelector('h1.no-lang').innerHTML).to.equal('Willkommen');
+  });
+
+  it('request parameter overwrites static', async function () {
+      // statically defined parameter
+    expect(document.querySelector('h1.static-lang')).to.exist;
+    expect(document.querySelector('h1.static-lang').innerHTML).to.equal('Willkommen');
+  });
+});
+
+describe('expand HTML template types.html', function () {
+  let document, res
+
+  before(async function () {
+    res = await axiosInstance.get('types.html', {
       params: {
         n1: 20,
         n2: 30.25,
         date: '2021-02-07+01:00'
       }
     });
-    expect(res.status).to.equal(200);
     const { window } = new JSDOM(res.data);
-
-    // default parameter value applies
-    expect(window.document.querySelector('p.numbers')).to.exist;
-    expect(window.document.querySelector('p.numbers').innerHTML).to.equal('50.25');
-    expect(window.document.querySelector('p.date').innerHTML).to.equal('7');
+    document = window.document
+  })
+  
+  it('returns with status OK', async function () {
+    expect(res.status).to.equal(200);
+    expect(document).to.be.ok;
   });
+
+  it('converts numbers', async function () {
+    // default parameter value applies
+    expect(document.querySelector('p.numbers')).to.exist;
+    expect(document.querySelector('p.numbers').innerHTML).to.equal('50.25');
+  });
+
+  it('converts dates', async function () {
+    expect(document.querySelector('p.date').innerHTML).to.equal('7');
+  });
+});
+
+describe('expand HTML template types-fail.html', function () {
 
   it('rejects wrong parameter type', function () {
     return axiosInstance.get('types-fail.html', {
@@ -80,6 +126,10 @@ describe('expand HTML template', function () {
         expect(error.response.data).to.contain('templates:TypeError');
       });
   });
+
+});
+
+describe('expand HTML template missing-tmpl.html', function () {
 
   it("reports missing template functions", async function () {
 		return axiosInstance.get("missing-tmpl.html")
