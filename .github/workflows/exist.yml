@@ -11,63 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
        matrix:
-         exist-version: [latest, release]
-         node-version: [14.x]
-    # TODO: see #563 could still be usefull for gulp builds 
-    # services:
-    #   # Label used to access the service container
-    #   exist:
-    #     image: existdb/existdb:${{ matrix.exist-version}}
-    #     ports:
-    #       - 8080:8080
-
+         exist-version: [5.2.0, 5.4.1, release, latest]
+         node-version: [16]
+    services:
+      # Label used to access the service container
+      exist:
+        image: existdb/existdb:${{ matrix.exist-version }}
+        ports:
+          - 8080:8080
+        volumes:
+          - ${{ github.workspace }}/xquery:/exist/autodeploy
+        options: >-
+          --health-interval 4s
     steps:
       # Checkout code
       - uses: actions/checkout@v2
-      # set-up caches
-      - name: Cache node modules
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-        
-
       # Build Frontend
       - name: Build Frontend Using Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      - run: npm run build:all
       
-      # Deploy Package in Container
-      - name: Pull Base Image
-        run: docker pull existdb/existdb:${{ matrix.exist-version }}
-
-      - name: Create CI Container
-        run: docker create  --name exist-ci -p 8080:8080 existdb/existdb:${{ matrix.exist-version }} 
-
-      - name: Copy templating xar
-        run: docker cp ./templating-*.xar exist-ci:exist/autodeploy
-      - name: Copy test xar
-        run: docker cp ./test-templating.xar exist-ci:exist/autodeploy
-
-      - name: Start Exist Container
-        run: docker start exist-ci && sleep 30
-
       # Testing 
       - name: Run Unit Tests     
         run: npm test
