@@ -12,7 +12,7 @@
 		"xquery"
 	],
 	"devDependencies": {
-		"@existdb/gulp-exist": "^4.3.0",
+		"@existdb/gulp-exist": "^4.3.2",
 		"@existdb/gulp-replace-tmpl": "^1.0.4",
 		"axios": "^0.21.1",
 		"chai": "^4.2.0",
