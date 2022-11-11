@@ -23,6 +23,7 @@ declare variable $templates:CONFIG_APP_ROOT := "app-root";
 declare variable $templates:CONFIG_ROOT := "root";
 declare variable $templates:CONFIG_FN_RESOLVER := "fn-resolver";
 declare variable $templates:CONFIG_PARAM_RESOLVER := "param-resolver";
+declare variable $templates:CONFIG_FILTER_ATTRIBUTES := "filter-atributes";
 
 declare variable $templates:CONFIGURATION := "configuration";
 declare variable $templates:CONFIGURATION_ERROR := QName("http://exist-db.org/xquery/html-templating", "ConfigurationError");
@@ -70,7 +71,7 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
 :)
 declare function templates:apply($content as node()+, $resolver as function(xs:string, xs:int) as item()?, $model as map(*)?,
     $configuration as map(*)?) {
-    let $model := if (exists($model)) then $model else map {}
+    let $_model := if (exists($model)) then $model else map {}
     let $configuration :=
         if (exists($configuration)) then
             map:merge((
@@ -83,10 +84,10 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
             ))
         else
             templates:get-default-config($resolver)
-    let $model := map:merge(($model, map:entry($templates:CONFIGURATION, $configuration)))
+    let $__model := map:merge(($_model, map:entry($templates:CONFIGURATION, $configuration)))
     for $root in $content
     return
-        templates:process($root, $model)
+        templates:process($root, $__model)
 };
 
 declare %private function templates:get-default-config($resolver as function(xs:string, xs:int) as item()?) as map(*) {
@@ -223,7 +224,7 @@ declare %private function templates:process-output($node as element(), $model as
     return
         if ($wrap) then
             element { node-name($node) } {
-                $node/@*,
+                templates:filter-attributes($node, $model),
                 templates:process-output($node, $model, $output)
             }
         else
@@ -470,8 +471,15 @@ declare function templates:each($node as node(), $model as map(*), $from as xs:s
     for $item in $model($from)
     return
         element { node-name($node) } {
-            $node/@*, templates:process($node/node(), map:merge(($model, map:entry($to, $item))))
+            templates:filter-attributes($node, $model),
+            templates:process($node/node(), map:merge(($model, map:entry($to, $item))))
         }
+};
+
+declare function templates:filter-attributes($node as node(), $model as map(*)) {
+    if ($model?($templates:CONFIGURATION)?($templates:CONFIG_FILTER_ATTRIBUTES))
+    then $node/@*[not(starts-with(local-name(.), $templates:ATTR_DATA_TEMPLATE))]
+    else $node/@*
 };
 
 declare function templates:if-parameter-set($node as node(), $model as map(*), $param as xs:string) as node()* {
