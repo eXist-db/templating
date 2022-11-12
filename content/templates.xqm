@@ -36,7 +36,7 @@ declare variable $templates:TYPE_ERROR := QName("http://exist-db.org/xquery/html
 declare variable $templates:MAX_ARITY := 8;
 
 declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
-declare variable $templates:SEARCH_IN_CLASS := true();
+declare variable $templates:SEARCH_IN_CLASS := false();
 
 (:~
  : Start processing the provided content. Template functions are looked up by calling the
@@ -48,7 +48,7 @@ declare variable $templates:SEARCH_IN_CLASS := true();
  :
  : @param $template the template that will be processed
  : @param $resolver a function which takes a name and returns a function with that name
- : @param $model a sequence of items which will be passed to all called template functions. Use this to pass
+ : @param $model a map which will be passed to all called template functions. Use this to pass
  : information between templating instructions.
 :)
 declare function templates:apply(
@@ -69,7 +69,7 @@ declare function templates:apply(
  :
  : @param $template the template that will be processed
  : @param $resolver a function which takes a name and returns a function with that name
- : @param $model a sequence of items which will be passed to all called template functions. Use this to pass
+ : @param $model a map which will be passed to all called template functions. Use this to pass
  : information between templating instructions.
  : @param $configuration a map of configuration parameters. For example you may provide a
  :  'parameter value resolver' by mapping $templates:CONFIG_PARAM_RESOLVER to a function
@@ -82,16 +82,11 @@ declare function templates:apply(
     $model as map(*)?,
     $configuration as map(*)?
 ) {
-    let $_model := map:merge(($model, map {}))
-    let $config :=
-        map:merge((
-            templates:get-default-config($resolver),
-            $configuration
-        ))
-
-    return
-        templates:process($template,
-            map:put($_model, $templates:CONFIGURATION, $config))
+    templates:process($template,
+        map:put(
+            map:merge(($model, map {})),
+            $templates:CONFIGURATION, 
+            map:merge((templates:get-default-config($resolver), $configuration))))
 };
 
 declare function templates:render(
@@ -103,16 +98,14 @@ declare function templates:render(
         map:put(
             map:merge(($model, map {})),
             $templates:CONFIGURATION,
-            map:merge((
-                map {
-                    $templates:CONFIG_FN_RESOLVER : templates:qname-resolver#1,
-                    $templates:CONFIG_PARAM_RESOLVER : templates:lookup-param-from-restserver#1,
-                    $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY
-                },
-                $configuration
-            ))
-        )
-    )
+            map:merge(($templates:DEFAULT_CONFIG, $configuration))))
+};
+
+declare variable $templates:DEFAULT_CONFIG := map {
+    $templates:CONFIG_USE_CLASS_SYNTAX: $templates:SEARCH_IN_CLASS,
+    $templates:CONFIG_FN_RESOLVER : templates:qname-resolver#1,
+    $templates:CONFIG_PARAM_RESOLVER : $templates:lookup-param-from-restserver,
+    $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY
 };
 
 declare %private
@@ -122,44 +115,49 @@ function templates:qname-resolver ($name as xs:string) as xs:QName {
 };
 
 declare
-    %private 
-function templates:get-default-config($resolver as function(xs:string) as item()?) as map(*) {
-    map {
-        $templates:CONFIG_USE_CLASS_SYNTAX: $templates:SEARCH_IN_CLASS,
-        $templates:CONFIG_FN_RESOLVER : $resolver,
-        $templates:CONFIG_PARAM_RESOLVER : templates:lookup-param-from-restserver#1,
-        $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY
-    }
+    %private
+function templates:get-default-config($resolver as function(xs:string) as function(*)?) as map(*) {
+    map:put($templates:DEFAULT_CONFIG, $templates:CONFIG_FN_RESOLVER, $resolver)
 };
 
-declare
-    %private 
-function templates:first-result($fns as function(*)*) as item()* {
-    if (empty($fns)) then
-        ()
+declare function templates:resolve-key($model, $key) {
+    let $resolvers := $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER)
+    return templates:first-result($resolvers, $key)
+};
+
+declare %private
+function templates:first-result($fns as function(*)*, $arg) as item()* {
+    fold-left($fns, (), function ($res, $next) {
+        if (exists($res)) then $res else $next($arg) 
+    })
+    (: fold-left($fns, [$arg, ()], templates:resolve-reducer#2)?2 :)
+    (: if (empty($fns)) then ()
     else
-        let $result := head($fns)()
+        let $result := head($fns)($arg)
         return
-            if (exists($result)) then
-                $result
-            else
-                templates:first-result(tail($fns))
+            if (exists($result)) then $result
+            else templates:first-result(tail($fns), $arg) :)
 };
 
-declare %private function templates:lookup-param-from-restserver($var as xs:string) as item()* {
-    templates:first-result((
-        function() { request:get-parameter($var, ()) },
-        function() { session:get-attribute($var) },
-        function() { request:get-attribute($var) }
-    ))
+declare %private function templates:resolve-reducer ($acc, $next) {
+    if (exists($acc?2)) then $acc
+    else array:put($acc, 2, $next($acc?1))
 };
+
+
+declare %private
+variable $templates:lookup-param-from-restserver := (
+    request:get-parameter(?, ()),
+    session:get-attribute#1,
+    request:get-attribute#1
+);
 
 (:~
  : Continue template processing on the given set of nodes. Call this function from
  : within other template functions to enable recursive processing of templates.
  :
  : @param $nodes the nodes to process
- : @param $model a sequence of items which will be passed to all called template functions. Use this to pass
+ : @param $model a map which will be passed to all called template functions. Use this to pass
  : information between templating instructions.
 :)
 declare function templates:process($nodes as node()*, $model as map(*)) {
@@ -183,62 +181,46 @@ function templates:get-configuration($model as map(*), $func as xs:string) {
 
 declare %private
 function templates:process-element($node as node(), $model as map(*)) {
-    let $func := templates:get-template-function($node, $model)
+    let $config := templates:get-configuration($model, "")
+    let $func := templates:get-template-function($node, $config)
     return
         if (empty($func)) then
             (: Templating function not found: just copy the element :)
             templates:copy-node($node, $model)
         else
-            templates:call-by-introspection(
-                $node, $model, 
-                templates:parameters-from-attr($node),
-                $func
-            )
+            templates:call-by-introspection($node, $model, $config, $func)
 };
 
 declare %private
-function templates:get-template-function($node as element(), $model as map(*)) as function(*)? {
+function templates:get-template-function($node as element(), $config as map(*)) as function(*)? {
     let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
-    let $conf := templates:get-configuration($model, "templates:get-template-function")
     return
         if ($attr)
         then
-            templates:resolve(
-                $attr/string(), $conf)
-        else if ($model?($templates:CONFIGURATION)?($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
-            util:log("info", ("asdfasdfsdfas", $node/@class)),
-            templates:resolve(
-                head(tokenize($node/@class, "\s+")[templates:is-qname(.)]), $conf)
+            templates:resolve($attr/string(), $config)
+        else if ($config?($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
+            util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[templates:is-qname(.)])),
+            let $first-qname-match := head(tokenize($node/@class, "\s+")[templates:is-qname(.)])
+            return if (empty($first-qname-match)) then () else templates:resolve($first-qname-match, $config)
         ) else ()
 };
 
 declare %private function templates:call-by-introspection(
     $node as element(),
     $model as map(*),
-    $parameters as map(xs:string, xs:string),
+    $config as map(*),
     $fn as function(*)
 ) {
     let $inspect := inspect:inspect-function($fn)
-    let $fn-name := prefix-from-QName(function-name($fn)) || ":" || local-name-from-QName(function-name($fn))
-    let $param-lookup := templates:get-configuration($model, $fn-name)($templates:CONFIG_PARAM_RESOLVER)
-    let $args := templates:map-arguments($inspect, $parameters, $param-lookup)
-    return
-        templates:process-output(
-            $node,
-            $model,
-            apply($fn, array:join(([ $node, $model ], $args))),
-            $inspect
-        )
-};
+    let $is-wrapping := $inspect/annotation[ends-with(@name, ":wrap")][@namespace = "http://exist-db.org/xquery/html-templating"]
+    (: let $fn-name := prefix-from-QName(function-name($fn)) || ":" || local-name-from-QName(function-name($fn)) :)
+    let $param-lookup := $config($templates:CONFIG_PARAM_RESOLVER)
+    let $parameters := templates:parameters-from-attr($node)
+    let $args := templates:map-arguments($inspect/argument, $parameters, $param-lookup)
+    let $output := apply($fn, array:join(([ $node, $model ], $args)))
 
-declare %private
-function templates:process-output($node as element(), $model as map(*), $output as item()*,
-    $inspect as element(function)) {
-    let $wrap :=
-        $inspect/annotation[ends-with(@name, ":wrap")]
-            [@namespace = "http://exist-db.org/xquery/html-templating"]
     return
-        if ($wrap) then
+        if ($is-wrapping) then
             element { node-name($node) } {
                 templates:filter-attributes($node, $model),
                 templates:process-output($node, $model, $output)
@@ -251,42 +233,42 @@ declare %private
 function templates:process-output($node as element(), $model as map(*), $output as item()*) {
     typeswitch($output)
         case map(*) return
-            templates:process($node/node(), map:merge(($model, $output)))
+            templates:process($node/node(), map:merge(($output, $model)))
         default return
             $output
 };
 
 declare %private
-function templates:map-arguments($inspect as element(function), $parameters as map(xs:string, xs:string), $param-lookup as function(xs:string) as item()*)
-as array(*)* {
-    let $args := $inspect/argument
-    return
-        if (count($args) > 2) then
-            for $arg in subsequence($args, 3)
-            return
-                [ templates:map-argument($arg, $parameters, $param-lookup) ]
-        else
-            []
+function templates:map-arguments(
+    $args as element(argument)*,
+    $parameters as map(xs:string, xs:string),
+    $param-lookup as function(xs:string) as item()**
+) as array(*)* {
+    if (count($args) < 2) then error((), "attempt to call a template function with less than two arguments")
+    else if (count($args) = 2) then []
+    else
+        for $arg in subsequence($args, 3)
+        return
+            [ templates:map-argument($arg, $parameters, $param-lookup) ]
 };
 
-declare %private function templates:map-argument($arg as element(argument), $parameters as map(xs:string, xs:string), $param-lookup as function(xs:string) as item()*)
-    as item()* {
-    let $var := $arg/@var
+declare %private
+function templates:map-argument(
+    $arg as element(argument),
+    $parameters as map(xs:string, xs:string),
+    $param-lookup as function(xs:string) as item()**
+) as item()* {
+    let $var := $arg/@var/string()
     let $type := $arg/@type/string()
 
-    let $looked-up-param := $param-lookup($var)
-    let $param-from-context :=
-        if(exists($looked-up-param))then
-            $looked-up-param
-        else
-            $parameters($var)
+    let $resolvers := (
+        $param-lookup,
+        $parameters,
+        templates:arg-from-annotation(?, $arg)
+    )
+    let $param := templates:first-result($resolvers, $var)
 
-    let $param :=
-        if (exists($param-from-context)) then
-            $param-from-context
-        else
-            templates:arg-from-annotation($var, $arg)
-    let $data :=
+    return
         try {
             templates:cast($param, $type)
         } catch * {
@@ -294,18 +276,16 @@ declare %private function templates:map-argument($arg as element(argument), $par
                 "template function parameter $" || $var || " of function " || ($arg/../@name) || ". Required type was: " ||
                 $type || ". " || $err:description)
         }
-    return
-        $data
 };
 
-declare %private function templates:arg-from-annotation($var as xs:string, $arg as element(argument)) {
+declare %private
+function templates:arg-from-annotation($var as xs:string, $arg as element(argument)) {
     let $anno :=
         $arg/../annotation[ends-with(@name, ":default")]
             [@namespace = "http://exist-db.org/xquery/html-templating"]
             [value[1] = $var]
-    for $value in subsequence($anno/value, 2)
-    return
-        string($value)
+    
+    return tail($anno/value)/string()
 };
 
 declare %private
@@ -542,7 +522,7 @@ function templates:is-template-attribute($attribute as attribute()) {
 };
 
 declare function templates:if-parameter-set($node as node(), $model as map(*), $param as xs:string) as node()* {
-    let $values := templates:get-configuration($model, "templates:if-parameter-set")($templates:CONFIG_PARAM_RESOLVER)($param)
+    let $values := templates:resolve-key($model, $param)
     return
         if (exists($values) and string-length(string-join($values)) gt 0) then
             templates:process($node/node(), $model)
@@ -551,7 +531,8 @@ declare function templates:if-parameter-set($node as node(), $model as map(*), $
 };
 
 declare function templates:if-parameter-unset($node as node(), $model as item()*, $param as xs:string) as node()* {
-    let $values := templates:get-configuration($model, "templates:if-parameter-unset")($templates:CONFIG_PARAM_RESOLVER)($param)
+    let $values := templates:resolve-key($model, $param)
+
     return
         if (empty($values) or string-length(string-join($values)) eq 0) then
             templates:process($node/node(), $model)
@@ -606,13 +587,14 @@ declare function templates:if-module-missing($node as node(), $model as map(*), 
  :)
 declare function templates:form-control($node as node(), $model as map(*)) as node()* {
     let $control := local-name($node)
+    let $resolvers := templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)
     return
         switch ($control)
         case "form" return
             element { node-name($node) }{
                 $node/@* except $node/@action,
                 attribute action {
-                    templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)("form-action")
+                    templates:resolve-key($model, "form-action")
                 },
                 for $n in $node/node()
                 return templates:form-control($n, $model)
@@ -620,7 +602,8 @@ declare function templates:form-control($node as node(), $model as map(*)) as no
         case "input" return
             let $type := $node/@type
             let $name := $node/@name
-            let $value := templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($name)
+            let $value := templates:resolve-key($model, $name)
+            (: templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($name) :)
             return
                 if (exists($value)) then
                     switch ($type)
@@ -643,7 +626,9 @@ declare function templates:form-control($node as node(), $model as map(*)) as no
                 else
                     $node
         case "select" return
-            let $value := templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($node/@name/string())
+            let $value := templates:resolve-key($model, $node/@name/string())
+
+            (: templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($node/@name/string()) :)
             return
                 element { node-name($node) } {
                     $node/@*,
@@ -666,7 +651,7 @@ declare function templates:form-control($node as node(), $model as map(*)) as no
 };
 
 declare function templates:error-description($node as node(), $model as map(*)) {
-    let $input := templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)("org.exist.forward.error")
+    let $input := templates:resolve-key($model, "org.exist.forward.error")
     return
         element { node-name($node) } {
             $node/@*,

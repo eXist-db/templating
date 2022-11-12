@@ -200,7 +200,7 @@ declare %private function lib:expand-text($text as xs:string, $model as map(*), 
                 case element(fn:match) return
                     let $paramName := $token/fn:group[1]/string()
                     let $default := $token/fn:group[2]/string()
-                    let $param := $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER)($paramName)
+                    let $param := templates:resolve-key($model, $paramName)
                     let $values :=
                         if (exists($param)) then
                             $param
