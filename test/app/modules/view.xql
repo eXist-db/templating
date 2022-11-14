@@ -14,7 +14,6 @@ declare option output:media-type "text/html";
 
 
 let $config := map {
-    $templates:CONFIG_FN_RESOLVER   : xs:QName(?),
     $templates:CONFIG_APP_ROOT      : $test:app-root,
     $templates:CONFIG_STOP_ON_ERROR : true()
 }
@@ -35,7 +34,20 @@ let $config-with-class-syntax-maybe-set :=
  : Run it through the templating system and return the result.
  :)
 return
-    templates:render(
-        request:get-data(), 
-        map { "my-model-item": 'xxx' },
-        $config-with-class-syntax-maybe-set)
+templates:apply(
+    request:get-data(), 
+    xs:QName(?),
+    map { "my-model-item": 'xxx' },
+    $config-with-class-syntax-maybe-set)
+
+(: alternative :)
+(:
+templates:render(
+    request:get-data(),
+    map { "my-model-item": 'xxx' },
+    map {
+        $templates:CONFIG_FN_RESOLVER   : xs:QName(?),
+        $templates:CONFIG_APP_ROOT      : $test:app-root,
+        $templates:CONFIG_STOP_ON_ERROR : true()
+    })
+:)

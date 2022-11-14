@@ -110,13 +110,12 @@ declare variable $templates:DEFAULT_CONFIG := map {
 
 declare %private
 function templates:qname-resolver ($name as xs:string) as xs:QName { 
-    (: function-lookup(xs:QName($name), $arity) :)
     xs:QName($name)
 };
 
 declare
     %private
-function templates:get-default-config($resolver as function(xs:string) as function(*)?) as map(*) {
+function templates:get-default-config($resolver as function(xs:string) as xs:QName) as map(*) {
     map:put($templates:DEFAULT_CONFIG, $templates:CONFIG_FN_RESOLVER, $resolver)
 };
 
@@ -127,10 +126,15 @@ declare function templates:resolve-key($model, $key) {
 
 declare %private
 function templates:first-result($fns as function(*)*, $arg) as item()* {
-    fold-left($fns, (), function ($res, $next) {
+    (: fold-left with no context :)
+    (: fold-left($fns, (), function ($res, $next) {
         if (exists($res)) then $res else $next($arg) 
-    })
-    (: fold-left($fns, [$arg, ()], templates:resolve-reducer#2)?2 :)
+    }) :)
+
+    (: fold-left with dynamic context :)
+    fold-left($fns, [$arg, ()], templates:resolve-reducer#2)?2
+    
+    (: recursion :)
     (: if (empty($fns)) then ()
     else
         let $result := head($fns)($arg)
@@ -160,49 +164,54 @@ variable $templates:lookup-param-from-restserver := (
  : @param $model a map which will be passed to all called template functions. Use this to pass
  : information between templating instructions.
 :)
-declare function templates:process($nodes as node()*, $model as map(*)) {
-    for $node in $nodes
-    return
-        typeswitch ($node)
-            case document-node() return templates:process($node/node(), $model)
-            case element() return templates:process-element($node, $model)
-            default return $node
+declare function templates:process($nodes as node()*, $model as map(*)) as node()* {
+    (: check for configuration and throw if not  :)
+    if (not(map:contains($model, $templates:CONFIGURATION))) then 
+        error($templates:CONFIGURATION_ERROR,
+            "Configuration map not found in model.")
+    else templates:process-children($nodes, $model)
 };
 
 declare %private
-function templates:get-configuration($model as map(*), $func as xs:string) {
-    if (map:contains($model, $templates:CONFIGURATION)) then
-        $model($templates:CONFIGURATION)
-    else
-        error($templates:CONFIGURATION_ERROR,
-            "Configuration map not found in model. Tried to call: " || $func)
+function templates:process-children($nodes as node()*, $model as map(*)) {
+    for $node in $nodes
+    return
+        typeswitch ($node)
+            case document-node() return templates:process-children($node/node(), $model)
+            case element() return templates:process-element($node, $model)
+            default return $node
 };
 
 
 declare %private
 function templates:process-element($node as node(), $model as map(*)) {
-    let $config := templates:get-configuration($model, "")
-    let $func := templates:get-template-function($node, $config)
+    let $config := $model($templates:CONFIGURATION)
+    let $tmpl-func := templates:get-template-function($node, $config)
     return
-        if (empty($func)) then
+        if (empty($tmpl-func)) then
             (: Templating function not found: just copy the element :)
             templates:copy-node($node, $model)
         else
-            templates:call-by-introspection($node, $model, $config, $func)
+            templates:call-by-introspection($node, $model, $config, $tmpl-func)
 };
 
 declare %private
 function templates:get-template-function($node as element(), $config as map(*)) as function(*)? {
-    let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
-    return
-        if ($attr)
-        then
-            templates:resolve($attr/string(), $config)
-        else if ($config?($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
-            util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[templates:is-qname(.)])),
-            let $first-qname-match := head(tokenize($node/@class, "\s+")[templates:is-qname(.)])
-            return if (empty($first-qname-match)) then () else templates:resolve($first-qname-match, $config)
-        ) else ()
+    try {
+        let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
+        return
+            if ($attr)
+            then
+                templates:resolve($attr/string(), $config)
+            else if ($config?($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
+                util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[templates:is-qname(.)])),
+                let $first-qname-match := head(tokenize($node/@class, "\s+")[templates:is-qname(.)])
+                return if (empty($first-qname-match)) then () else templates:resolve($first-qname-match, $config)
+            ) else ()
+    }
+    catch * {
+        error($err:code, "Error Processing node: " || serialize($node) || " Reason: &#10;" || $err:description)
+    }
 };
 
 declare %private function templates:call-by-introspection(
@@ -233,7 +242,7 @@ declare %private
 function templates:process-output($node as element(), $model as map(*), $output as item()*) {
     typeswitch($output)
         case map(*) return
-            templates:process($node/node(), map:merge(($output, $model)))
+            templates:process-children($node/node(), map:merge(($output, $model)))
         default return
             $output
 };
@@ -422,7 +431,7 @@ declare function templates:include($node as node(), $model as map(*), $path as x
             (: Locate template relative to HTML file :)
             concat($root, "/", $path)
     return
-        templates:process(doc($path), $model)
+        templates:process-children(doc($path), $model)
 };
 
 declare function templates:surround(
@@ -452,12 +461,12 @@ declare function templates:surround(
             if ($model($templates:CONFIGURATION)($templates:CONFIG_STOP_ON_ERROR)) then
                 error($templates:PROCESSING_ERROR, "surround: template not found at " || $path)
             else
-                templates:process($node/node(), $model)
+                templates:process-children($node/node(), $model)
         else
             let $model := templates:surround-options($model, $options)
             let $merged := templates:process-surround($content, $node, $at)
             return
-                templates:process($merged, $model)
+                templates:process-children($merged, $model)
 };
 
 declare %private
@@ -503,7 +512,7 @@ declare function templates:each($node as node(), $model as map(*), $from as xs:s
     return
         element { node-name($node) } {
             templates:filter-attributes($node, $model),
-            templates:process($node/node(), map:put($model, $to, $item))
+            templates:process-children($node/node(), map:put($model, $to, $item))
         }
 };
 
@@ -525,7 +534,7 @@ declare function templates:if-parameter-set($node as node(), $model as map(*), $
     let $values := templates:resolve-key($model, $param)
     return
         if (exists($values) and string-length(string-join($values)) gt 0) then
-            templates:process($node/node(), $model)
+            templates:process-children($node/node(), $model)
         else
             ()
 };
@@ -535,7 +544,7 @@ declare function templates:if-parameter-unset($node as node(), $model as item()*
 
     return
         if (empty($values) or string-length(string-join($values)) eq 0) then
-            templates:process($node/node(), $model)
+            templates:process-children($node/node(), $model)
         else
             ()
 };
@@ -547,14 +556,14 @@ declare function templates:if-parameter-unset($node as node(), $model as item()*
 :)
 declare function templates:if-attribute-set($node as node(), $model as map(*), $attribute as xs:string) {
     if (exists($attribute) and request:get-attribute($attribute)) then
-        templates:process($node/node(), $model)
+        templates:process-children($node/node(), $model)
     else
         ()
 };
 
 declare function templates:if-model-key-equals($node as node(), $model as map(*), $key as xs:string, $value as xs:string) {
     if ($model($key) = $value) then
-        templates:process($node/node(), $model)
+        templates:process-children($node/node(), $model)
     else
         ()
 };
@@ -564,7 +573,7 @@ declare function templates:if-model-key-equals($node as node(), $model as map(*)
  :)
 declare function templates:unless-model-key-equals($node as node(), $model as map(*), $key as xs:string, $value as xs:string) {
     if (not($model($key) = $value)) then
-        templates:process($node/node(), $model)
+        templates:process-children($node/node(), $model)
     else
         ()
 };
@@ -577,7 +586,7 @@ declare function templates:if-module-missing($node as node(), $model as map(*), 
         util:import-module($uri, "testmod", $at)
     } catch * {
         (: Module was not found: process content :)
-        templates:process($node/node(), $model)
+        templates:process-children($node/node(), $model)
     }
 };
 
@@ -586,68 +595,60 @@ declare function templates:if-module-missing($node as node(), $model as map(*), 
     values found in the request - if present.
  :)
 declare function templates:form-control($node as node(), $model as map(*)) as node()* {
-    let $control := local-name($node)
-    let $resolvers := templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)
-    return
-        switch ($control)
-        case "form" return
-            element { node-name($node) }{
-                $node/@* except $node/@action,
-                attribute action {
-                    templates:resolve-key($model, "form-action")
-                },
-                for $n in $node/node()
-                return templates:form-control($n, $model)
+    switch (local-name($node))
+    case "form" return
+        element { node-name($node) }{
+            $node/@* except $node/@action,
+            attribute action {
+                templates:resolve-key($model, "form-action")
+            },
+            for $n in $node/node()
+            return templates:form-control($n, $model)
+        }
+    case "input" return
+        let $type := $node/@type
+        let $name := $node/@name
+        let $value := templates:resolve-key($model, $name)
+        return
+            if (empty($value)) then $node
+            else
+                switch ($type)
+                    case "checkbox" 
+                    case "radio" return
+                        element { node-name($node) } {
+                            $node/@* except $node/@checked,
+                            if ($node/@value = $value or $value = "true") then
+                                attribute checked { "checked" }
+                            else
+                                (),
+                            $node/node()
+                        }
+                    default return
+                        element { node-name($node) } {
+                            $node/@* except $node/@value,
+                            attribute value { $value },
+                            $node/node()
+                        }
+    case "select" return
+        let $value := templates:resolve-key($model, $node/@name/string())
+        return
+            element { node-name($node) } {
+                $node/@*,
+                for $option in $node/*[local-name(.) = "option"]
+                return
+                    if (empty($value)) then $option
+                    else
+                        element { node-name($option) } {
+                            $option/@* except $option/@selected,
+                            if ($option/@value = $value or $option/string() = $value) then
+                                attribute selected { "selected" }
+                            else
+                                (),
+                            $option/node()
+                        }
             }
-        case "input" return
-            let $type := $node/@type
-            let $name := $node/@name
-            let $value := templates:resolve-key($model, $name)
-            (: templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($name) :)
-            return
-                if (exists($value)) then
-                    switch ($type)
-                        case "checkbox"
-                        case "radio" return
-                            element { node-name($node) } {
-                                $node/@* except $node/@checked,
-                                if ($node/@value = $value or $value = "true") then
-                                    attribute checked { "checked" }
-                                else
-                                    (),
-                                $node/node()
-                            }
-                        default return
-                            element { node-name($node) } {
-                                $node/@* except $node/@value,
-                                attribute value { $value },
-                                $node/node()
-                            }
-                else
-                    $node
-        case "select" return
-            let $value := templates:resolve-key($model, $node/@name/string())
-
-            (: templates:get-configuration($model, "templates:form-control")($templates:CONFIG_PARAM_RESOLVER)($node/@name/string()) :)
-            return
-                element { node-name($node) } {
-                    $node/@*,
-                    for $option in $node/*[local-name(.) = "option"]
-                    return
-                        if (empty($value)) then
-                            $option
-                        else
-                            element { node-name($option) } {
-                                $option/@* except $option/@selected,
-                                if ($option/@value = $value or $option/string() = $value) then
-                                    attribute selected { "selected" }
-                                else
-                                    (),
-                                $option/node()
-                            }
-                }
-        default return
-            $node
+    default return
+        $node
 };
 
 declare function templates:error-description($node as node(), $model as map(*)) {
@@ -663,9 +664,15 @@ declare function templates:error-description($node as node(), $model as map(*)) 
         }
 };
 
-declare function templates:copy-node($node as element(), $model as item()*) {
+declare %private
+function templates:copy-node($node as element(), $model as map(*)) {
     element { node-name($node) } {
         $node/@*,
-        templates:process($node/node(), $model)
+        templates:process-children($node/node(), $model)
     }
+};
+
+declare %private
+function templates:shallow-copy-node($node as element(), $_model as map(*)) {
+    element { node-name($node) } { $node/@* }
 };
