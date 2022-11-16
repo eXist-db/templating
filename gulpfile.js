@@ -30,7 +30,8 @@ const connectionOptions = {
 const existClient = createClient(connectionOptions);
 
 const static = [
-    "content/*"
+    "content/*",
+    "test/xqs/*{.xq,.xql}"
 ]
 
 // test application metadata
