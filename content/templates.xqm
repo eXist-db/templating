@@ -476,10 +476,8 @@ function templates:surround-options($model as map(*), $optionsStr as xs:string?)
             let $keyValue := tokenize($option, "\s*=\s*")
             return
                 if (exists($keyValue)) then
-                    if (count($keyValue) = 1) then
-                        map:entry($keyValue, true())
-                    else
-                        map:entry($keyValue[1], $keyValue[2])
+                    map:entry($keyValue[1],
+                        ($keyValue[2], true())[1])
                 else
                     ()
         ))
