@@ -431,9 +431,10 @@ declare function templates:include(
 };
 
 declare function templates:surround(
-    $node as node(), $model as map(*), $with as xs:string, $at as xs:string?,
+    $node as node(), $model as map(*),
+    $with as xs:string, $at as xs:string?,
     $using as xs:string?, $options as xs:string?
-) {
+) as node()* {
     let $appRoot := templates:get-app-root($model)
     let $root := templates:get-root($model)
     let $path :=
@@ -484,10 +485,14 @@ function templates:surround-options($model as map(*), $optionsStr as xs:string?)
 };
 
 declare %private
-function templates:process-surround($node as node(), $content as node(), $at as xs:string) {
+function templates:process-surround(
+    $node as node(), $content as node(),
+    $at as xs:string
+) as node()* {
     typeswitch ($node)
         case document-node() return
-            for $child in $node/node() return templates:process-surround($child, $content, $at)
+            for $child in $node/node()
+            return templates:process-surround($child, $content, $at)
         case element() return
             if ($node/@id eq $at) then
                 element { node-name($node) } {
@@ -495,13 +500,17 @@ function templates:process-surround($node as node(), $content as node(), $at as 
                 }
             else
                 element { node-name($node) } {
-                    $node/@*, for $child in $node/node() return templates:process-surround($child, $content, $at)
+                    $node/@*,
+                    for $child in $node/node()
+                    return templates:process-surround($child, $content, $at)
                 }
-        default return
-            $node
+        default return $node
 };
 
-declare function templates:each($node as node(), $model as map(*), $from as xs:string, $to as xs:string) {
+declare function templates:each(
+    $node as node(), $model as map(*), 
+    $from as xs:string, $to as xs:string
+) as element()* {
     for $item in $model($from)
     return
         element { node-name($node) } {
@@ -511,20 +520,23 @@ declare function templates:each($node as node(), $model as map(*), $from as xs:s
 };
 
 declare %private
-function templates:filter-attributes($node as node(), $model as map(*)) {
+function templates:filter-attributes($node as node(), $model as map(*)) as attribute()* {
     if ($model($templates:CONFIGURATION)($templates:CONFIG_FILTER_ATTRIBUTES))
     then $node/@*[not(templates:is-template-attribute(.))]
     else $node/@*
 };
 
 declare %private
-function templates:is-template-attribute($attribute as attribute()) {
+function templates:is-template-attribute($attribute as attribute()) as xs:boolean {
     starts-with(
         local-name($attribute),
-        $templates:ATTR_DATA_TEMPLATE)   
+        $templates:ATTR_DATA_TEMPLATE)
 };
 
-declare function templates:if-parameter-set($node as node(), $model as map(*), $param as xs:string) as node()* {
+declare function templates:if-parameter-set(
+    $node as node(), $model as map(*),
+    $param as xs:string
+) as node()* {
     let $values := templates:resolve-key($model, $param)
     return
         if (exists($values) and string-length(string-join($values)) gt 0) then
@@ -533,7 +545,10 @@ declare function templates:if-parameter-set($node as node(), $model as map(*), $
             ()
 };
 
-declare function templates:if-parameter-unset($node as node(), $model as item()*, $param as xs:string) as node()* {
+declare function templates:if-parameter-unset(
+    $node as node(), $model as map(*),
+    $param as xs:string
+) as node()* {
     let $values := templates:resolve-key($model, $param)
 
     return
@@ -546,16 +561,23 @@ declare function templates:if-parameter-unset($node as node(), $model as item()*
 (: NOTE: to be moved to separate module because:
     1) HTTP Attribute is specific to Java Servlets
     2) Limits use to specifics to REST Server and URL Rewrite!
-    If desirable for use from REST Server should be implemented elsewhere, perhaps in a module that includes the templates module?!?
+    If desirable for use from REST Server should be implemented 
+    elsewhere, perhaps in a module that includes the templates module?!?
 :)
-declare function templates:if-attribute-set($node as node(), $model as map(*), $attribute as xs:string) {
+declare function templates:if-attribute-set(
+    $node as node(), $model as map(*),
+    $attribute as xs:string
+) as node()* {
     if (exists($attribute) and request:get-attribute($attribute)) then
         templates:process-children($node/node(), $model)
     else
         ()
 };
 
-declare function templates:if-model-key-equals($node as node(), $model as map(*), $key as xs:string, $value as xs:string) {
+declare function templates:if-model-key-equals(
+    $node as node(), $model as map(*),
+    $key as xs:string, $value as xs:string
+) as node()* {
     if ($model($key) = $value) then
         templates:process-children($node/node(), $model)
     else
@@ -565,7 +587,10 @@ declare function templates:if-model-key-equals($node as node(), $model as map(*)
 (:~
  : Evaluates its enclosed block unless the model property $key is set to value $value.
  :)
-declare function templates:unless-model-key-equals($node as node(), $model as map(*), $key as xs:string, $value as xs:string) {
+declare function templates:unless-model-key-equals(
+    $node as node(), $model as map(*),
+    $key as xs:string, $value as xs:string
+) as node()* {
     if (not($model($key) = $value)) then
         templates:process-children($node/node(), $model)
     else
@@ -575,7 +600,10 @@ declare function templates:unless-model-key-equals($node as node(), $model as ma
 (:~
  : Evaluate the enclosed block if there's a model property $key equal to $value.
  :)
-declare function templates:if-module-missing($node as node(), $model as map(*), $uri as xs:string, $at as xs:string) {
+declare function templates:if-module-missing(
+    $node as node(), $model as map(*),
+    $uri as xs:string, $at as xs:string
+) {
     try {
         util:import-module($uri, "testmod", $at)
     } catch * {
@@ -650,7 +678,7 @@ declare function templates:select ($node as element(select), $model) as element(
         }
 };
 
-declare function templates:error-description($node as node(), $model as map(*)) {
+declare function templates:error-description($node as node(), $model as map(*)) as element() {
     let $input := templates:resolve-key($model, "org.exist.forward.error")
     return
         element { node-name($node) } {
@@ -664,7 +692,7 @@ declare function templates:error-description($node as node(), $model as map(*)) 
 };
 
 declare %private
-function templates:copy-node($node as element(), $model as map(*)) {
+function templates:copy-node($node as element(), $model as map(*)) as element() {
     element { node-name($node) } {
         $node/@*,
         templates:process-children($node/node(), $model)
@@ -672,6 +700,6 @@ function templates:copy-node($node as element(), $model as map(*)) {
 };
 
 declare %private
-function templates:shallow-copy-node($node as element(), $_model as map(*)) {
+function templates:shallow-copy-node($node as element(), $model as map(*)) as element() {
     element { node-name($node) } { $node/@* }
 };
