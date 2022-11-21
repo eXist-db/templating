@@ -16,7 +16,6 @@ import module namespace request="http://exist-db.org/xquery/request";
 import module namespace session="http://exist-db.org/xquery/session";
 import module namespace util="http://exist-db.org/xquery/util";
 
-declare namespace expath="http://expath.org/ns/pkg";
 
 declare variable $templates:CONFIG_STOP_ON_ERROR := "stop-on-error";
 declare variable $templates:CONFIG_APP_ROOT := "app-root";
