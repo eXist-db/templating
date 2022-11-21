@@ -27,11 +27,13 @@ declare variable $templates:CONFIG_USE_CLASS_SYNTAX := "class-lookup";
 declare variable $templates:CONFIG_MAX_ARITY := "max-arity";
 
 declare variable $templates:CONFIGURATION := "configuration";
-declare variable $templates:CONFIGURATION_ERROR := QName("http://exist-db.org/xquery/html-templating", "ConfigurationError");
-declare variable $templates:NOT_FOUND := QName("http://exist-db.org/xquery/html-templating", "NotFound");
-declare variable $templates:TOO_MANY_ARGS := QName("http://exist-db.org/xquery/html-templating", "TooManyArguments");
-declare variable $templates:PROCESSING_ERROR := QName("http://exist-db.org/xquery/html-templating", "ProcessingError");
-declare variable $templates:TYPE_ERROR := QName("http://exist-db.org/xquery/html-templating", "TypeError");
+
+declare variable $templates:NS := "http://exist-db.org/xquery/html-templating";
+declare variable $templates:CONFIGURATION_ERROR := xs:QName("templates:ConfigurationError");
+declare variable $templates:NOT_FOUND := xs:QName("templates:NotFound");
+declare variable $templates:TOO_MANY_ARGS := xs:QName("templates:TooManyArguments");
+declare variable $templates:PROCESSING_ERROR := xs:QName("templates:ProcessingError");
+declare variable $templates:TYPE_ERROR := xs:QName("templates:TypeError");
 declare variable $templates:MAX_ARITY := 8;
 
 declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
@@ -220,7 +222,7 @@ declare %private function templates:call-by-introspection(
     $fn as function(*)
 ) {
     let $inspect := inspect:inspect-function($fn)
-    let $is-wrapping := $inspect/annotation[ends-with(@name, ":wrap")][@namespace = "http://exist-db.org/xquery/html-templating"]
+    let $is-wrapping := $inspect/annotation[ends-with(@name, ":wrap")][@namespace = $templates:NS]
     (: let $fn-name := prefix-from-QName(function-name($fn)) || ":" || local-name-from-QName(function-name($fn)) :)
     let $param-lookup := $config($templates:CONFIG_PARAM_RESOLVER)
     let $parameters := templates:parameters-from-attr($node)
@@ -290,7 +292,7 @@ declare %private
 function templates:arg-from-annotation($var as xs:string, $arg as element(argument)) {
     let $anno :=
         $arg/../annotation[ends-with(@name, ":default")]
-            [@namespace = "http://exist-db.org/xquery/html-templating"]
+            [@namespace = $templates:NS]
             [value[1] = $var]
     
     return tail($anno/value)/string()
