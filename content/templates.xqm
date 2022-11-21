@@ -604,59 +604,64 @@ declare function templates:if-module-missing($node as node(), $model as map(*), 
  :)
 declare function templates:form-control($node as node(), $model as map(*)) as node()* {
     switch (local-name($node))
-    case "form" return
-        element { node-name($node) }{
-            $node/@* except $node/@action,
-            attribute action {
-                templates:resolve-key($model, "form-action")
-            },
-            for $n in $node/node()
-            return templates:form-control($n, $model)
-        }
-    case "input" return
-        let $type := $node/@type
-        let $name := $node/@name
-        let $value := templates:resolve-key($model, $name)
-        return
-            if (empty($value)) then $node
+        case "form" return templates:form($node, $model)
+        case "input" return templates:input($node, $model)
+        case "select" return templates:select($node, $model)
+        default return $node
+};
+
+declare function templates:form ($node as element(form), $model as map(*)) as element(form) {
+    element { node-name($node) }{
+        $node/@* except $node/@action,
+        attribute action {
+            templates:resolve-key($model, "form-action")
+        },
+        for $n in $node/node()
+        return templates:form-control($n, $model)
+    }
+};
+
+declare function templates:input ($node as element(input), $model as map(*)) as element(input) {
+    let $value := templates:resolve-key($model, $node/@name)
+    return
+        if (empty($value)) then $node
+        else
+            switch ($node/@type)
+                case "checkbox" 
+                case "radio" return
+                    element { node-name($node) } {
+                        $node/@* except $node/@checked,
+                        if ($node/@value = $value or $value = "true") then
+                            attribute checked { "checked" }
+                        else
+                            (),
+                        $node/node()
+                    }
+                default return
+                    element { node-name($node) } {
+                        $node/@* except $node/@value,
+                        attribute value { $value },
+                        $node/node()
+                    }
+};
+
+declare function templates:select ($node as element(select), $model) as element(select) {
+    let $value := templates:resolve-key($model, $node/@name/string())
+    let $options := $node/option
+    return
+        element select {
+            $node/@*,
+            if (empty($value)) then $options
             else
-                switch ($type)
-                    case "checkbox" 
-                    case "radio" return
-                        element { node-name($node) } {
-                            $node/@* except $node/@checked,
-                            if ($node/@value = $value or $value = "true") then
-                                attribute checked { "checked" }
-                            else
-                                (),
-                            $node/node()
-                        }
-                    default return
-                        element { node-name($node) } {
-                            $node/@* except $node/@value,
-                            attribute value { $value },
-                            $node/node()
-                        }
-    case "select" return
-        let $value := templates:resolve-key($model, $node/@name/string())
-        return
-            element { node-name($node) } {
-                $node/@*,
-                for $option in $node/*[local-name(.) = "option"]
+                for $option in $options
+                let $selected := $option/@value = $value or $option/string() = $value
                 return
-                    if (empty($value)) then $option
-                    else
-                        element { node-name($option) } {
-                            $option/@* except $option/@selected,
-                            if ($option/@value = $value or $option/string() = $value) then
-                                attribute selected { "selected" }
-                            else
-                                (),
-                            $option/node()
-                        }
-            }
-    default return
-        $node
+                    element option {
+                        $option/@* except $option/@selected,
+                        if ($selected) then attribute selected { "selected" } else (),
+                        $option/node()
+                    }
+        }
 };
 
 declare function templates:error-description($node as node(), $model as map(*)) {
