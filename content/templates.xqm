@@ -416,22 +416,29 @@ declare function templates:get-root($model as map(*)) as xs:string? {
 (:~
  : @deprecated use lib:include instead
  :)
-declare function templates:include($node as node(), $model as map(*), $path as xs:string) {
-    let $appRoot := templates:get-app-root($model)
-    let $root := templates:get-root($model)
+declare function templates:include(
+    $node as node(), $model as map(*), $path as xs:string
+) as node()* {
     let $path :=
         if (starts-with($path, "/")) then
             (: Search template relative to app root :)
-            concat($appRoot, "/", $path)
+            concat(templates:get-app-root($model), "/", $path)
         else if (matches($path, "^https?://")) then
             (: Template is loaded from a URL, this template even if a HTML file, must be
                returned with mime-type XML and be valid XML, as it is retrieved with fn:doc() :)
             $path
         else
             (: Locate template relative to HTML file :)
-            concat($root, "/", $path)
+            concat(templates:get-root($model), "/", $path)
+    let $template := doc($path)
+
     return
-        templates:process-children(doc($path), $model)
+        if (empty($template) and $model($templates:CONFIGURATION)($templates:CONFIG_STOP_ON_ERROR)) then
+            error($templates:PROCESSING_ERROR, "include: template not found at " || $path)
+        else if (empty($template)) then
+            templates:process-children($node/node(), $model)
+        else
+            templates:process-children($template, $model)
 };
 
 declare function templates:surround(
