@@ -346,18 +346,6 @@ function templates:parse-attr($attr as attribute()) as map(xs:string, xs:string)
 };
 
 declare %private
-function templates:parse-parameters($paramStr as xs:string?) as map(xs:string, xs:string) {
-    map:merge(
-        for $param in tokenize($paramStr, "&amp;")
-        let $key := substring-before($param, "=")
-        let $value := substring-after($param, "=")
-        where $key
-        return
-            map:entry($key, $value)
-    )
-};
-
-declare %private
 function templates:is-qname($class as xs:string) as xs:boolean {
     matches($class, "^[^:]+:[^:]+")
 };
