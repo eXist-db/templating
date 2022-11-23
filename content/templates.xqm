@@ -4,10 +4,10 @@ xquery version "3.1";
 (:~
  : HTML templating module
  :
- : @version 2.1
  : @author Wolfgang Meier
  : @contributor Adam Retter
  : @contributor Joe Wicentowski
+ : @contributor Juri Leino
 :)
 module namespace templates="http://exist-db.org/xquery/html-templating";
 import module namespace inspect="http://exist-db.org/xquery/inspection";
@@ -21,6 +21,7 @@ declare variable $templates:CONFIG_STOP_ON_ERROR := "stop-on-error";
 declare variable $templates:CONFIG_APP_ROOT := "app-root";
 declare variable $templates:CONFIG_ROOT := "root";
 declare variable $templates:CONFIG_FN_RESOLVER := "fn-resolver";
+declare variable $templates:CONFIG_QNAME_RESOLVER := "qname-resolver";
 declare variable $templates:CONFIG_PARAM_RESOLVER := "param-resolver";
 declare variable $templates:CONFIG_FILTER_ATTRIBUTES := "filter-atributes";
 declare variable $templates:CONFIG_USE_CLASS_SYNTAX := "class-lookup";
@@ -38,6 +39,7 @@ declare variable $templates:MAX_ARITY := 8;
 
 declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
 declare variable $templates:SEARCH_IN_CLASS := false();
+declare variable $templates:ATTR_FILTER_FUNCTION := "attribute-filter-function";
 
 (:~
  : Start processing the provided content. Template functions are looked up by calling the
@@ -54,7 +56,7 @@ declare variable $templates:SEARCH_IN_CLASS := false();
 :)
 declare function templates:apply(
     $template as node(),
-    $resolver as function(xs:string) as xs:QName,
+    $resolver as function(xs:string, xs:integer) as function(*)?,
     $model as map(*)?
 ) {
     templates:apply($template, $resolver, $model, ())
@@ -79,15 +81,13 @@ declare function templates:apply(
 :)
 declare function templates:apply(
     $template as node(),
-    $resolver as function(xs:string) as xs:QName,
+    $resolver as function(xs:string, xs:integer) as function(*)?,
     $model as map(*)?,
     $configuration as map(*)?
 ) {
     templates:process($template,
-        map:put(
-            map:merge(($model, map {})),
-            $templates:CONFIGURATION, 
-            map:merge((templates:get-default-config($resolver), $configuration))))
+        templates:configure($model,
+            templates:merge-legacy-config($configuration, $resolver)))
 };
 
 declare function templates:render(
@@ -96,28 +96,81 @@ declare function templates:render(
     $configuration as map(*)?
 ) {
     templates:process($template,
-        map:put(
-            map:merge(($model, map {})),
-            $templates:CONFIGURATION,
-            map:merge(($templates:DEFAULT_CONFIG, $configuration))))
-};
-
-declare variable $templates:DEFAULT_CONFIG := map {
-    $templates:CONFIG_USE_CLASS_SYNTAX: $templates:SEARCH_IN_CLASS,
-    $templates:CONFIG_FN_RESOLVER : templates:qname-resolver#1,
-    $templates:CONFIG_PARAM_RESOLVER : $templates:lookup-param-from-restserver,
-    $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY
+        templates:configure($model, $configuration))
 };
 
 declare %private
-function templates:qname-resolver ($name as xs:string) as xs:QName { 
-    xs:QName($name)
+function templates:configure(
+    $maybe-model as map(*)?,
+    $maybe-config as map(*)?
+) as map(*) {
+    let $model := map:merge(($maybe-model, map {}))
+
+    let $mapped-config-options :=
+        map:for-each(
+            $maybe-config, templates:map-configuration-options#2)
+
+    let $configuration := map:merge((
+        $templates:DEFAULT_CONFIG,
+        $mapped-config-options
+    ))
+
+    return
+        map:put($model, $templates:CONFIGURATION, $configuration)
+};
+
+declare %private
+function templates:map-configuration-options (
+    $key as xs:anyAtomicType, $value as item()*
+) {
+    switch ($key)
+        case $templates:CONFIG_QNAME_RESOLVER
+        return map {
+            $templates:CONFIG_FN_RESOLVER : function ($name, $arity) {
+                function-lookup($value($name), $arity)
+            }
+        }
+        case $templates:CONFIG_FILTER_ATTRIBUTES
+        return map {
+            $templates:ATTR_FILTER_FUNCTION :
+              if ($value)
+              then templates:filtered-attributes#1
+              else templates:all-attributes#1
+        }
+
+        default return map { $key : $value }
 };
 
 declare
     %private
-function templates:get-default-config($resolver as function(xs:string) as xs:QName) as map(*) {
-    map:put($templates:DEFAULT_CONFIG, $templates:CONFIG_FN_RESOLVER, $resolver)
+function templates:merge-legacy-config(
+    $maybe-config as map(*)?,
+    $maybe-resolver as function(xs:string, xs:integer) as function(*)?
+) as map(*)? {
+    if (empty($maybe-resolver)) then $maybe-config
+    else map:merge((
+        $maybe-config,
+        map { $templates:CONFIG_FN_RESOLVER : $maybe-resolver }
+    ))
+};
+
+declare variable $templates:DEFAULT_CONFIG := map {
+    $templates:CONFIG_USE_CLASS_SYNTAX: $templates:SEARCH_IN_CLASS,
+    $templates:CONFIG_FN_RESOLVER : templates:function-resolver#2,
+    $templates:CONFIG_PARAM_RESOLVER : $templates:lookup-param-from-restserver,
+    $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY,
+    $templates:CONFIG_FILTER_ATTRIBUTES : false(),
+    $templates:ATTR_FILTER_FUNCTION : templates:all-attributes#1
+};
+
+declare %private
+function templates:function-resolver ($name as xs:string, $arity as xs:integer) as function(*)? {
+    function-lookup(xs:QName($name), $arity)
+};
+
+declare %private
+function templates:qname-resolver ($name as xs:string) as xs:QName {
+    xs:QName($name)
 };
 
 declare function templates:resolve-key($model, $key) {
@@ -211,7 +264,9 @@ function templates:get-template-function($node as element(), $config as map(*)) 
             ) else ()
     }
     catch * {
-        error($err:code, "Error Processing node: " || serialize($node) || " Reason: &#10;" || $err:description)
+        error($err:code,
+            "Error Processing node: " || serialize($node) ||
+            " Reason: &#10;" || $err:description)
     }
 };
 
@@ -322,8 +377,7 @@ function templates:resolve(
     $config as map(*),
     $arity as xs:integer
 ) as function(*)? {
-    let $qn := $config($templates:CONFIG_FN_RESOLVER)($function-name)
-    let $fn := function-lookup($qn, $arity)
+    let $fn := $config($templates:CONFIG_FN_RESOLVER)($function-name, $arity)
     return
         if (exists($fn)) then $fn
         else if ($arity ge $config($templates:CONFIG_MAX_ARITY)) then ()
@@ -521,10 +575,16 @@ declare function templates:each(
 
 declare %private
 function templates:filter-attributes($node as node(), $model as map(*)) as attribute()* {
-    if ($model($templates:CONFIGURATION)($templates:CONFIG_FILTER_ATTRIBUTES))
-    then $node/@*[not(templates:is-template-attribute(.))]
-    else $node/@*
+    $model($templates:CONFIGURATION)($templates:ATTR_FILTER_FUNCTION)($node)
 };
+
+declare %private
+function templates:filtered-attributes($node as node()) as attribute()* {
+    $node/@*[not(templates:is-template-attribute(.))]
+};
+
+declare %private
+function templates:all-attributes($node as node()) as attribute()* { $node/@* };
 
 declare %private
 function templates:is-template-attribute($attribute as attribute()) as xs:boolean {

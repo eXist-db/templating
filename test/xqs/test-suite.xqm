@@ -43,7 +43,10 @@ declare variable $tt:data :=
     </data>
 ;
 
-declare variable $tt:lookup := xs:QName(?);
+declare variable $tt:lookup := function ($name, $arity) {
+    function-lookup(xs:QName($name), $arity)
+};
+declare variable $tt:qname-resolve := xs:QName(?);
 
 (:~
  : minimum configuration to allow testing in XQSuite
@@ -203,7 +206,22 @@ function tt:attributes-unfiltered-by-default() {
 
 declare
     %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n", "templates:each", "data", "item", "tt:n")
-function tt:render() {
+function tt:render-qname-resolver() {
+    templates:render(
+        $tt:template,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_QNAME_RESOLVER : $tt:qname-resolve,
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_FILTER_ATTRIBUTES : false()
+        }
+    )
+    => tt:get-template-attribute-values()
+};
+
+declare
+    %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n", "templates:each", "data", "item", "tt:n")
+function tt:render-fn-resolver() {
     templates:render(
         $tt:template,
         map { 'data': $tt:data//a },
