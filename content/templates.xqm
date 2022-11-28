@@ -69,18 +69,20 @@ declare variable $templates:DEFAULT_CONFIG := map {
 };
 
 (:~
- : Start processing the provided content. Template functions are looked up by calling the
- : provided function $resolver. The function should take a name as a string
- : and return the corresponding function item. The simplest implementation of this function could
- : look like this:
+ : Start processing the provided content. Template functions are looked up by
+ : calling the provided function $resolver. The function should take a name as
+ : a string and return the corresponding function item. The simplest implemen-
+ : tation of this function could look like this:
  :
  : <pre>function($functionName as xs:string, $arity as xs:integer) { function-lookup(xs:QName($functionName), $arity) }</pre>
  :
  : @param $template the template that will be processed
- : @param $resolver a function which takes a name and returns a function with that name
- : @param $model a map which will be passed to all called template functions. Use this to pass
- : information between templating instructions.
-:)
+ : @param $resolver a function which takes a name and returns a function with
+ :                  that name
+ : @param $model    a map which will be passed to all called template
+ :                  functions. Use this to pass information between templating
+ :                  instructions.
+ :)
 declare function templates:apply (
     $template as node(),
     $resolver as function(xs:string, xs:integer) as function(*)?,
@@ -90,22 +92,27 @@ declare function templates:apply (
 };
 
 (:~
- : Start processing the provided content.Template functions are looked up by calling the
- : provided function $resolver. The function should take a name as a string
- : and return the corresponding function item. The simplest implementation of this function could
- : look like this:
+ : Start processing the provided content. Template functions are looked up by
+ : calling the provided function $resolver. The function should take a name as
+ : a string and return the corresponding function item. The simplest implemen-
+ : tation of this function could look like this:
  :
  : <pre>function($functionName as xs:string, $arity as xs:integer) { function-lookup(xs:QName($functionName), $arity) }</pre>
  :
  : @param $template the template that will be processed
- : @param $resolver a function which takes a name and returns a function with that name
- : @param $model a map which will be passed to all called template functions. Use this to pass
- : information between templating instructions.
- : @param $configuration a map of configuration parameters. For example you may provide a
- :  'parameter value resolver' by mapping $templates:CONFIG_PARAM_RESOLVER to a function
- :  whose job it is to provide values for templated parameters. The function signature for
- :  the 'parameter value resolver' is f($param-name as xs:string) as item()*
-:)
+ : @param $resolver a function which takes a name and returns a function with
+ :                  that name
+ : @param $model    a map which will be passed to all called template
+ :                  functions. Use this to pass information between templating
+ :                  instructions.
+ : @param $configuration    a map of configuration parameters. For example you
+ :                          may provide a 'parameter value resolver' by mapping
+ :                          $templates:CONFIG_PARAM_RESOLVER to a function
+ :                          whose job it is to provide values for templated
+ :                          parameters. The function signature for the
+ :                          'parameter value resolver' is
+ :                          function(xs:string) as item()*
+ :)
 declare function templates:apply (
     $template as node(),
     $resolver as function(xs:string, xs:integer) as function(*)?,
@@ -142,7 +149,7 @@ declare function templates:render (
  : @param $nodes the nodes to process
  : @param $model a map which will be passed to all called template functions.
  :     Use this to pass information between templating instructions.
-:)
+ :)
 declare function templates:process (
     $nodes as node()*, $model as map(*)
 ) as node()* {
@@ -385,8 +392,8 @@ declare function templates:if-module-missing (
 };
 
 (:~
-    Processes input and select form controls, setting their value/selection to
-    values found in the request - if present.
+ : Processes input and select form controls, setting their value/selection to
+ : values found in the request - if present.
  :)
 declare function templates:form-control (
     $node as node(), $model as map(*)
