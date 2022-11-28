@@ -261,7 +261,7 @@ function tt:render-no-lookup-success() {
 };
 
 declare
-    %test:assertError("templates:NotFound")
+    %test:assertError("templates:FunctionNotFound")
 function tt:render-max-arity-2() {
     templates:render(
         <html><body><p data-template="templates:each" data-template-from="data" data-template-to="item">item</p></body></html>,
@@ -271,7 +271,7 @@ function tt:render-max-arity-2() {
             $templates:CONFIG_MAX_ARITY : 2,
             $templates:CONFIG_STOP_ON_ERROR : true()
         }
-    )//p => count()
+    )
 };
 
 declare
@@ -302,8 +302,8 @@ function tt:render-with-parse-params-custom-delimiter() {
         map { 'data': $tt:data//@n },
         map {
             $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
-            $templates:START_DELIMITER: '\[\[',
-            $templates:END_DELIMITER: '\]\]'
+            $templates:CONFIG_START_DELIMITER: '\[\[',
+            $templates:CONFIG_END_DELIMITER: '\]\]'
         }
     )
     //p/span/text()

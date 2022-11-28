@@ -141,7 +141,7 @@ describe('expand HTML template missing-tmpl.html', function () {
 		return axiosInstance.get("missing-tmpl.html")
 			.catch((error) => {
 				expect(error.response.status).to.be.oneOf([400, 500]);
-				expect(error.response.data).to.contain("templates:NotFound");
+				expect(error.response.data).to.contain("templates:FunctionNotFound");
 			});
   });
 });
@@ -293,13 +293,13 @@ describe("Supports parsing parameters", function () {
 
 });
 
-describe('Fail if template is missing', function() {
-  it('fails if template could not be found', function () {
+describe('Fail if template function is missing', function() {
+  it('fails if a template function could not be resolved', function () {
     return axiosInstance.get('template-missing.html')
       .then(res => console.error(res.status))
       .catch(error => {
         expect(error.response.status).to.be.oneOf([400, 500]);
-        expect(error.response.data).to.contain('templates:NotFound');
+        expect(error.response.data).to.contain('templates:FunctionNotFound');
       });
   });
 });

@@ -28,19 +28,32 @@ declare variable $templates:CONFIG_PARAM_RESOLVER := "param-resolver";
 declare variable $templates:CONFIG_FILTER_ATTRIBUTES := "filter-atributes";
 declare variable $templates:CONFIG_USE_CLASS_SYNTAX := "class-lookup";
 declare variable $templates:CONFIG_MAX_ARITY := "max-arity";
-declare variable $templates:START_DELIMITER := "start-delimiter";
-declare variable $templates:END_DELIMITER := "end-delimiter";
+declare variable $templates:CONFIG_START_DELIMITER := "start-delimiter";
+declare variable $templates:CONFIG_END_DELIMITER := "end-delimiter";
+
 declare variable $templates:ATTR_FILTER_FUNCTION := "attribute-filter-function";
 declare variable $templates:SEARCH_IN_CLASS := false();
 
 declare variable $templates:NS := "http://exist-db.org/xquery/html-templating";
 
 (: error QNames :)
-declare variable $templates:CONFIGURATION_ERROR := xs:QName("templates:ConfigurationError");
-declare variable $templates:NOT_FOUND := xs:QName("templates:NotFound");
-declare variable $templates:TOO_MANY_ARGS := xs:QName("templates:TooManyArguments");
-declare variable $templates:PROCESSING_ERROR := xs:QName("templates:ProcessingError");
-declare variable $templates:TYPE_ERROR := xs:QName("templates:TypeError");
+declare variable $templates:E_CONFIGURATION :=
+    xs:QName("templates:ConfigurationError");
+declare variable $templates:E_TEMPLATE_NOT_FOUND :=
+    xs:QName("templates:TemplateNotFound");
+declare variable $templates:E_FN_NOT_FOUND :=
+    xs:QName("templates:FunctionNotFound");
+declare variable $templates:E_TYPE :=
+    xs:QName("templates:TypeError");
+declare variable $templates:E_NOT_ENOUGH_ARGS :=
+    xs:QName("templates:NotEngoughArguments");
+declare variable $templates:E_ILLEGAL_OPTION :=
+    xs:QName("templates:illegal-option");
+(: unused :)
+declare variable $templates:E_PROCESSING :=
+    xs:QName("templates:ProcessingError");
+declare variable $templates:E_TOO_MANY_ARGS :=
+    xs:QName("templates:TooManyArguments");
 
 (: template attribute prefix :)
 declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
@@ -63,8 +76,8 @@ declare variable $templates:DEFAULT_CONFIG := map {
     $templates:CONFIG_PARAM_RESOLVER : $templates:lookup-param-from-restserver,
     $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY,
     $templates:CONFIG_FILTER_ATTRIBUTES : false(),
-    $templates:START_DELIMITER: '\$\{',
-    $templates:END_DELIMITER: '\}',
+    $templates:CONFIG_START_DELIMITER: '\$\{',
+    $templates:CONFIG_END_DELIMITER: '\}',
     $templates:ATTR_FILTER_FUNCTION : templates:all-attributes#1
 };
 
@@ -155,7 +168,7 @@ declare function templates:process (
 ) as node()* {
     (: check for configuration and throw if not  :)
     if (not(map:contains($model, $templates:CONFIGURATION))) then
-        error($templates:CONFIGURATION_ERROR,
+        error($templates:E_CONFIGURATION,
             "Configuration map not found in model.")
     else templates:process-children($nodes, $model)
 };
@@ -230,7 +243,8 @@ declare function templates:include (
 
     return
         if (templates:do-stop($empty, $model)) then
-            error($templates:PROCESSING_ERROR, "include: template not found at " || $path)
+            error($templates:E_TEMPLATE_NOT_FOUND,
+                "include: template not found at " || $path)
         else if ($empty) then (
             comment { "Include not found: " || $path },
             templates:process-children($node/node(), $model)
@@ -264,7 +278,7 @@ declare function templates:surround (
 
     return
         if (templates:do-stop($empty, $model)) then
-            error($templates:PROCESSING_ERROR,
+            error($templates:E_TEMPLATE_NOT_FOUND,
                 "surround: template not found at " || $with ||
                 " - using " || $using)
         else if ($empty) then
@@ -299,8 +313,8 @@ declare function templates:surround (
  :)
 declare function templates:parse-params ($node as node(), $model as map(*)) {
     let $delimiters := [
-        $model($templates:CONFIGURATION)($templates:START_DELIMITER),
-        $model($templates:CONFIGURATION)($templates:END_DELIMITER)
+        $model($templates:CONFIGURATION)($templates:CONFIG_START_DELIMITER),
+        $model($templates:CONFIGURATION)($templates:CONFIG_END_DELIMITER)
     ]
     let $attributes := $node/@* except $node/@data-template
     let $node :=
@@ -451,7 +465,7 @@ function templates:parse-options ($model, $options as xs:string) as map(*)* {
             or $key-value-pair[1] eq $templates:CONFIGURATION
     return
         if (templates:do-stop($problematic-key, $model)) then
-            error(xs:QName("templates:illegal-option"),
+            error($templates:E_ILLEGAL_OPTION,
                 "illegal option '" || $option || "'")
         else if ($problematic-key) then
             ( (:skip empty and forbidden :) )
@@ -922,7 +936,7 @@ function templates:map-arguments(
     $parameters as map(xs:string, xs:string),
     $param-lookup as function(xs:string) as item()**
 ) as array(*)* {
-    if (count($args) < 2) then error((),
+    if (count($args) < 2) then error($templates:E_NOT_ENOUGH_ARGS,
         "attempt to call a template function with less than two arguments")
     else if (count($args) = 2) then []
     else
@@ -951,7 +965,7 @@ function templates:map-argument(
         try {
             templates:cast($param, $type)
         } catch * {
-            error($templates:TYPE_ERROR,
+            error($templates:E_TYPE,
                 "Failed to cast parameter value '" || $param || "' to the " ||
                 "required target type for template function parameter " ||
                 "$" || $var || " of function " || ($arg/../@name) || ". " ||
@@ -981,7 +995,7 @@ function templates:resolve(
     return
         if (empty($f) and $config($templates:CONFIG_STOP_ON_ERROR))
         then
-            error($templates:NOT_FOUND,
+            error($templates:E_FN_NOT_FOUND,
                 "No template function found for call " || $function-name ||
                 " (Maximum arity is set to " ||
                 $config($templates:CONFIG_MAX_ARITY) ||
