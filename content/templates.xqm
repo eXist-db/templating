@@ -41,6 +41,9 @@ declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
 declare variable $templates:SEARCH_IN_CLASS := false();
 declare variable $templates:ATTR_FILTER_FUNCTION := "attribute-filter-function";
 
+declare variable $templates:START_DELIMITER := "start-delimiter";
+declare variable $templates:END_DELIMITER := "end-delimiter";
+
 (:~
  : Start processing the provided content. Template functions are looked up by calling the
  : provided function $resolver. The function should take a name as a string
@@ -76,7 +79,7 @@ declare function templates:apply(
  : information between templating instructions.
  : @param $configuration a map of configuration parameters. For example you may provide a
  :  'parameter value resolver' by mapping $templates:CONFIG_PARAM_RESOLVER to a function
- :  whoose job it is to provide values for templated parameters. The function signature for
+ :  whose job it is to provide values for templated parameters. The function signature for
  :  the 'parameter value resolver' is f($param-name as xs:string) as item()*
 :)
 declare function templates:apply(
@@ -160,6 +163,8 @@ declare variable $templates:DEFAULT_CONFIG := map {
     $templates:CONFIG_PARAM_RESOLVER : $templates:lookup-param-from-restserver,
     $templates:CONFIG_MAX_ARITY : $templates:MAX_ARITY,
     $templates:CONFIG_FILTER_ATTRIBUTES : false(),
+    $templates:START_DELIMITER: '\$\{',
+    $templates:END_DELIMITER: '\}',
     $templates:ATTR_FILTER_FUNCTION : templates:all-attributes#1
 };
 
@@ -173,9 +178,14 @@ function templates:qname-resolver ($name as xs:string) as xs:QName {
     xs:QName($name)
 };
 
-declare function templates:resolve-key($model, $key) {
+declare function templates:resolve-key($model as map(*), $key as xs:string) {
     let $resolvers := $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER)
     return templates:first-result($resolvers, $key)
+};
+
+declare function templates:do-stop ($test as xs:boolean, $model as map(*)) as xs:boolean {
+    $test and
+    $model($templates:CONFIGURATION)($templates:CONFIG_STOP_ON_ERROR)
 };
 
 declare %private
@@ -186,15 +196,15 @@ function templates:first-result($fns as function(*)*, $arg) as item()* {
     }) :)
 
     (: fold-left with dynamic context :)
-    fold-left($fns, [$arg, ()], templates:resolve-reducer#2)?2
+    (: fold-left($fns, [$arg, ()], templates:resolve-reducer#2)?2 :)
     
     (: recursion :)
-    (: if (empty($fns)) then ()
+    if (empty($fns)) then ()
     else
         let $result := head($fns)($arg)
         return
             if (exists($result)) then $result
-            else templates:first-result(tail($fns), $arg) :)
+            else templates:first-result(tail($fns), $arg)
 };
 
 declare %private function templates:resolve-reducer ($acc, $next) {
@@ -270,7 +280,8 @@ function templates:get-template-function($node as element(), $config as map(*)) 
     }
 };
 
-declare %private function templates:call-by-introspection(
+declare %private
+function templates:call-by-introspection (
     $node as element(),
     $model as map(*),
     $config as map(*),
@@ -457,31 +468,35 @@ declare function templates:get-root($model as map(*)) as xs:string? {
  :-----------------------------------------------------------------------------------:)
 
 (:~
- : @deprecated use lib:include instead
+ : Include an HTML fragment from another file as given in parameter $path.
+ : The children (if any) of the including element (i.e. the one triggering the templates:include function)
+ : are merged into the included content. To define where a child element should be
+ : inserted, you must use a @data-target attribute referencing an HTML id which must exist
+ : within the included fragment. If @data-target is missing, the element will be discarded. 
+ : 
+ : This is a mechanism to inject content from the including element into the included content. For example, if the same menu
+ : or toolbar is included into every page of an application, but some pages should have
+ : additional options, you can use templates:include with templates:block to define the additional HTML
+ : to be inserted in a specific place.
+ :
+ : This is an extended version of templates:include.
  :)
-declare function templates:include(
+declare function templates:include (
     $node as node(), $model as map(*), $path as xs:string
 ) as node()* {
-    let $path :=
-        if (starts-with($path, "/")) then
-            (: Search template relative to app root :)
-            concat(templates:get-app-root($model), "/", $path)
-        else if (matches($path, "^https?://")) then
-            (: Template is loaded from a URL, this template even if a HTML file, must be
-               returned with mime-type XML and be valid XML, as it is retrieved with fn:doc() :)
-            $path
-        else
-            (: Locate template relative to HTML file :)
-            concat(templates:get-root($model), "/", $path)
-    let $template := doc($path)
+    let $template := templates:resolve-template($path, $model)
+    let $empty := empty($template)
 
     return
-        if (empty($template) and $model($templates:CONFIGURATION)($templates:CONFIG_STOP_ON_ERROR)) then
+        if (templates:do-stop($empty, $model)) then
             error($templates:PROCESSING_ERROR, "include: template not found at " || $path)
-        else if (empty($template)) then
+        else if ($empty) then (
+            comment { "Include not found: " || $path },
             templates:process-children($node/node(), $model)
+        )
         else
-            templates:process-children($template, $model)
+            templates:process-children(
+                templates:expand-blocks($node, $template), $model)
 };
 
 declare function templates:surround(
@@ -489,30 +504,15 @@ declare function templates:surround(
     $with as xs:string, $at as xs:string?,
     $using as xs:string?, $options as xs:string?
 ) as node()* {
-    let $appRoot := templates:get-app-root($model)
-    let $root := templates:get-root($model)
-    let $path :=
-        if (starts-with($with, "/")) then
-            (: Search template relative to app root :)
-            concat($appRoot, $with)
-        else if (matches($with, "^https?://")) then
-            (: Template is loaded from a URL, this template even if a HTML file, must be
-               returned with mime-type XML and be valid XML, as it is retrieved with fn:doc() :)
-            $with
-        else
-            (: Locate template relative to HTML file :)
-            concat($root, "/", $with)
-    let $content :=
-        if ($using) then
-            doc($path)//*[@id = $using]
-        else
-            doc($path)
+    let $doc := templates:resolve-template($with, $model)
+    let $template := if ($using) then $doc//*[@id = $using] else $doc
+    let $empty := empty($template)
+
     return
-        if (empty($content)) then
-            if ($model($templates:CONFIGURATION)($templates:CONFIG_STOP_ON_ERROR)) then
-                error($templates:PROCESSING_ERROR, "surround: template not found at " || $path)
-            else
-                templates:process-children($node/node(), $model)
+        if (templates:do-stop($empty, $model)) then
+            error($templates:PROCESSING_ERROR, "surround: template not found at " || $with || " - using " || $using)
+        else if ($empty) then
+            templates:process-children($node/node(), $model)
         else
             let $model := templates:surround-options($model, $options)
             let $merged := templates:process-surround($content, $node, $at)
@@ -521,21 +521,35 @@ declare function templates:surround(
 };
 
 declare %private
-function templates:surround-options($model as map(*), $optionsStr as xs:string?) as map(*) {
-    if (empty($optionsStr)) then
-        $model
+function templates:surround-options($model as map(*), $options as xs:string?) as map(*) {
+    if (empty($options)) then $model
     else
         map:merge((
-            $model,
-            for $option in tokenize($optionsStr, "\s*,\s*")
-            let $keyValue := tokenize($option, "\s*=\s*")
-            return
-                if (exists($keyValue)) then
-                    map:entry($keyValue[1],
-                        ($keyValue[2], true())[1])
-                else
-                    ()
+            templates:parse-options($model, $options),
+            $model
         ))
+};
+
+(:~
+ : parse options string
+ : comma-separated list of key value pairs
+ : example: a, b= 23 ,c =another value
+ : ensures configuration cannot be overwritten
+ :)
+declare %private
+function templates:parse-options ($model, $options as xs:string) as map(*)* {
+    for $option in tokenize($options, "\s*,\s*")
+    let $key-value-pair := tokenize($option, "\s*=\s*")
+    let $problematic-key := 
+        string-length($key-value-pair[1]) eq 0
+            or $key-value-pair[1] eq $templates:CONFIGURATION
+    return
+        if (templates:do-stop($problematic-key, $model)) then
+            error(xs:QName("templates:illegal-option"), "illegal option '" || $option || "'")
+        else if ($problematic-key) then
+            ( (:skip empty and forbidden :) )
+        else 
+            map { $key-value-pair[1] : ($key-value-pair[2], true())[1] }
 };
 
 declare %private
@@ -752,7 +766,7 @@ declare function templates:error-description($node as node(), $model as map(*)) 
 };
 
 declare %private
-function templates:copy-node($node as element(), $model as map(*)) as element() {
+function templates:copy-node ($node as element(), $model as map(*)) as element() {
     element { node-name($node) } {
         $node/@*,
         templates:process-children($node/node(), $model)
@@ -760,6 +774,169 @@ function templates:copy-node($node as element(), $model as map(*)) as element() 
 };
 
 declare %private
-function templates:shallow-copy-node($node as element(), $model as map(*)) as element() {
+function templates:shallow-copy-node ($node as element(), $model as map(*)) as element() {
     element { node-name($node) } { $node/@* }
+};
+
+declare %private
+function templates:resolve-template ($path as xs:string, $model as map(*)) as document-node()? {
+    let $resolved-path := 
+        if (starts-with($path, "/")) then
+            (: Search template relative to app root :)
+            concat(templates:get-app-root($model), $path)
+        else if (matches($path, "^https?://")) then
+            (: Template is loaded from a URL, this template even if a HTML file, must be
+                returned with mime-type XML and be valid XML, as it is retrieved with fn:doc() :)
+            $path
+        else
+            (: Locate template relative to HTML file :)
+            concat(templates:get-root($model), "/", $path)
+    
+    return doc($resolved-path)
+};
+
+declare
+function templates:expand-from-model ($model as map(*), $nested-key as xs:string) as item()* {
+    fold-left(
+        tokenize($nested-key, '\?'), $model, templates:model-resolve#2)
+};
+
+declare %private
+function templates:model-resolve ($context as map(*)?, $key as xs:string) as item()* {
+    if (empty($context)) then () else $context($key)
+};
+
+(:~
+ : Recursively expand template expressions appearing in attributes or text content,
+ : trying to expand them from request/session parameters or the current model.
+ :
+ : Template expressions by default should have the form ${paramName:default text}.
+ : You can change the used delimiters from `${` and `}` to something else by
+ : overwriting the parameters $start and $end.
+ :
+ : Specifying a default is optional. If there is no default and the parameter
+ : cannot be expanded, the empty string is output.
+ :
+ : To support navigating the map hierarchy of the model, paramName may be a sequence 
+ : of map keys separated by ?, i.e. ${address?street} would first retrieve the map
+ : property called "address" and then look up the property "street" on it.
+ :
+ : The templating function should fail gracefully if a parameter or map lookup cannot
+ : be resolved, a lookup resolves to multiple items, a map or an array.
+ :)
+declare 
+function templates:parse-params($node as node(), $model as map(*)) {
+    let $delimiters := [$model($templates:CONFIGURATION)($templates:START_DELIMITER), $model($templates:CONFIGURATION)($templates:END_DELIMITER)]
+    let $node := 
+        element { node-name($node) } {
+            templates:expand-attributes($node/@* except $node/@data-template, $model, $delimiters),
+            templates:expand-params($node/node(), $model, $delimiters)
+        }
+    return templates:process-children($node, $model)
+};
+
+declare %private
+function templates:expand-params($nodes as node()*, $model as map(*), $delimiters as array(*)) {
+    for $node in $nodes
+    return
+        typeswitch($node)
+            case element() return
+                element { node-name($node) } {
+                    templates:expand-attributes($node/@*, $model, $delimiters),
+                    templates:expand-params($node/node(), $model, $delimiters)
+                }
+            case text() return
+                if (matches($node, $delimiters?1 || ".+?" || $delimiters?2)) then
+                    text { templates:expand-text($node, $model, $delimiters) }
+                else
+                    $node
+            default return
+                $node
+};
+
+declare %private
+function templates:expand-attributes($attrs as attribute()*, $model as map(*), $delimiters as array(*)) {
+    for $attr in $attrs
+    return
+        if (matches($attr, $delimiters?1 || ".+?" || $delimiters?2)) then
+            attribute { node-name($attr) } {
+                templates:expand-text($attr, $model, $delimiters)
+            }
+        else
+            $attr
+};
+
+declare %private
+function templates:expand-text ($text as xs:string, $model as map(*), $delimiters as array(*)) as xs:string* {
+    let $parsed := analyze-string($text, $delimiters?1 || "(.+?)(?::(.+?))?" || $delimiters?2)
+    let $result :=
+        for $token in $parsed/node()
+        return
+            typeswitch($token)
+                case element(fn:non-match) return $token/string()
+                case element(fn:match) return templates:handle-matches($token, $model)
+                default return $token
+
+    return string-join($result)
+};
+
+declare %private
+function templates:handle-matches ($token as element(fn:match), $model as map(*)) as xs:string* {
+    let $key := $token/fn:group[1]/string()
+    let $default-value := $token/fn:group[2]/string()
+
+    let $resolved-value := 
+        templates:first-result((
+            $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER),
+            templates:expand-from-model($model, ?)),
+            $key)
+    
+    let $values :=
+        if (exists($resolved-value))
+        then $resolved-value
+        else $default-value
+
+    return
+        for $value in $values
+        return
+            typeswitch($value)
+                case map(*) | array(*) return
+                    serialize($value, map { "method": "json" })
+                default return $value
+};
+
+
+(:~
+ : Collect the children of the current element into a map, grouped by @data-target.
+ : Then call templates:expand-blocks-recursive to replace the corresponding target nodes
+ : in the included content with the collected HTML nodes.
+ :)
+declare %private
+function templates:expand-blocks($context as node(), $included as document-node()) as node()* {
+    let $blocks :=
+        for $blocks in $context/element()[@data-target]
+        group by $name := $blocks/@data-target
+        return
+            map { $name : $blocks }
+
+    return
+        templates:expand-blocks-recursive(
+            map:merge($blocks), $included/node())
+};
+
+declare %private
+function templates:expand-blocks-recursive($blocks as map(*), $nodes as node()*) as node()* {
+    for $node in $nodes
+    return
+        typeswitch ($node)
+            case element() return
+                if ($node/@id and map:contains($blocks, $node/@id)) then
+                    $blocks($node/@id)
+                else
+                    element { node-name($node) } {
+                        $node/@*,
+                        templates:expand-blocks-recursive($blocks, $node/node())
+                    }
+            default return
+                $node
 };

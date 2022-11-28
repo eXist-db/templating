@@ -1,5 +1,3 @@
-'use strict'
-
 const axios = require('axios');
 const expect = require('chai').expect;
 const jsdom = require('jsdom');
@@ -139,7 +137,6 @@ describe('expand HTML template types-fail.html', function () {
 });
 
 describe('expand HTML template missing-tmpl.html', function () {
-
   it("reports missing template functions", async function () {
 		return axiosInstance.get("missing-tmpl.html")
 			.catch((error) => {
@@ -155,8 +152,8 @@ describe('Supports template nesting', function() {
     expect(res.status).to.equal(200);
     const { window } = new JSDOM(res.data);
 
-    expect(window.document.querySelector('tr:nth-child(1) td[data-template="test:print-name"]').innerHTML).to.equal('Berta Muh');
-    expect(window.document.querySelector('tr:nth-child(2) td[data-template="test:print-street"]').innerHTML).to.equal('Am Zoo 45');
+    expect(window.document.querySelector('tr:nth-child(1) td.name').innerHTML).to.equal('Berta Muh');
+    expect(window.document.querySelector('tr:nth-child(2) td.street').innerHTML).to.equal('Am Zoo 45');
   });
 });
 
@@ -294,15 +291,6 @@ describe("Supports parsing parameters", function () {
 		expect(para.innerHTML).to.equal('{"test":"TEST2"}');
   });
 
-  it("handles different delimiters", async function () {
-		let para = document.getElementById("delimiters1");
-		expect(para).to.exist;
-		expect(para.innerHTML).to.equal('my title');
-
-    para = document.getElementById("delimiters2");
-	  expect(para).to.exist;
-	  expect(para.innerHTML).to.equal("TITLE: my title");
-  });
 });
 
 describe('Fail if template is missing', function() {
@@ -325,7 +313,7 @@ describe("Supports including another file", function () {
 		const { window } = new JSDOM(res.data);
 
     const items = window.document.querySelectorAll("li");
-    expect(items).to.have.lengthOf(4);
+    expect(items).to.have.lengthOf(8);
     expect(items[0].getAttribute('title')).to.equal('my title');
     expect(items[0].innerHTML).to.equal('Block inserted at "start"');
     expect(items[1].innerHTML).to.equal('First');
@@ -334,7 +322,6 @@ describe("Supports including another file", function () {
 });
 
 describe("Supports resolving app location", function() {
-  this.timeout(10000);
   it("replaces variable with app URL", async function () {
 		const res = await axiosInstance.get("resolve-apps.html");
 		expect(res.status).to.equal(200);

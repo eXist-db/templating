@@ -4,7 +4,6 @@ xquery version "3.1";
  : XQSuite tests for the templating library.
  :
  : @author eXist-db Project
- : @version 1.0.0
  : @see http://exist-db.org
  :)
 
@@ -279,7 +278,9 @@ declare
     %test:assertEquals(2)
 function tt:render-max-arity-4() {
     templates:render(
-        <html><body><p data-template="templates:each" data-template-from="data" data-template-to="item">item</p></body></html>,
+        <html><body>
+            <p data-template="templates:each" data-template-from="data" data-template-to="item">item</p>
+        </body></html>,
         map { 'data': $tt:data//a },
         map {
             $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
@@ -287,4 +288,23 @@ function tt:render-max-arity-4() {
             $templates:CONFIG_STOP_ON_ERROR : true()
         }
     )//p => count()
+};
+
+declare
+    %test:assertEquals("1","3","2","str")
+function tt:render-with-parse-params-custom-delimiter() {
+    templates:render(
+        <html><body>
+            <p data-template="templates:each" data-template-from="data" data-template-to="item">
+                <span data-template="templates:parse-params">[[item]]</span>
+            </p>
+        </body></html>,
+        map { 'data': $tt:data//@n },
+        map {
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:START_DELIMITER: '\[\[',
+            $templates:END_DELIMITER: '\]\]'
+        }
+    )
+    //p/span/text()
 };

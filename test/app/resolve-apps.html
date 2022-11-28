@@ -2,8 +2,10 @@
     <head>
         <title>Test Resolve Apps</title>
     </head>
-    <body data-template="lib:resolve-apps" data-template-abbrev="templating-test, does-not-exist">
-        <p id="test1" data-template="lib:parse-params">${templating-test}</p>
-        <p id="test2" data-template="lib:parse-params">${does-not-exist}</p>
+    <body data-template="apps:by-abbrev" data-template-abbrev="templating-test, does-not-exist">
+        <main data-template="templates:parse-params">
+            <p id="test1">${apps?templating-test}</p>
+            <p id="test2">${apps?does-not-exist}</p>
+        </main>
     </body>
 </html>
