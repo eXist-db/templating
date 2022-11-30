@@ -41,14 +41,14 @@ declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
  : and return the corresponding function item. The simplest implementation of this function could
  : look like this:
  :
- : <pre>function($functionName as xs:string, $arity as xs:int) { function-lookup(xs:QName($functionName), $arity) }</pre>
+ : <pre>function($functionName as xs:string, $arity as xs:integer) { function-lookup(xs:QName($functionName), $arity) }</pre>
  :
  : @param $content the sequence of nodes which will be processed
  : @param $resolver a function which takes a name and returns a function with that name
  : @param $model a sequence of items which will be passed to all called template functions. Use this to pass
  : information between templating instructions.
 :)
-declare function templates:apply($content as node()+, $resolver as function(xs:string, xs:int) as item()?, $model as map(*)?) {
+declare function templates:apply($content as node()+, $resolver as function(xs:string, xs:integer) as item()?, $model as map(*)?) {
     templates:apply($content, $resolver, $model, ())
 };
 
@@ -58,7 +58,7 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
  : and return the corresponding function item. The simplest implementation of this function could
  : look like this:
  :
- : <pre>function($functionName as xs:string, $arity as xs:int) { function-lookup(xs:QName($functionName), $arity) }</pre>
+ : <pre>function($functionName as xs:string, $arity as xs:integer) { function-lookup(xs:QName($functionName), $arity) }</pre>
  :
  : @param $content the sequence of nodes which will be processed
  : @param $resolver a function which takes a name and returns a function with that name
@@ -69,7 +69,7 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
  :  whoose job it is to provide values for templated parameters. The function signature for
  :  the 'parameter value resolver' is f($param-name as xs:string) as item()*
 :)
-declare function templates:apply($content as node()+, $resolver as function(xs:string, xs:int) as item()?, $model as map(*)?,
+declare function templates:apply($content as node()+, $resolver as function(xs:string, xs:integer) as item()?, $model as map(*)?,
     $configuration as map(*)?) {
     let $_model := if (exists($model)) then $model else map {}
     let $configuration :=
@@ -90,7 +90,7 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
         templates:process($root, $__model)
 };
 
-declare %private function templates:get-default-config($resolver as function(xs:string, xs:int) as item()?) as map(*) {
+declare %private function templates:get-default-config($resolver as function(xs:string, xs:integer) as item()?) as map(*) {
     map {
         $templates:CONFIG_FN_RESOLVER : $resolver,
         $templates:CONFIG_PARAM_RESOLVER : templates:lookup-param-from-restserver#1
@@ -290,12 +290,12 @@ declare %private function templates:arg-from-annotation($var as xs:string, $arg 
         string($value)
 };
 
-declare %private function templates:resolve($func as xs:string, $resolver as function(xs:string, xs:int) as function(*)) {
+declare %private function templates:resolve($func as xs:string, $resolver as function(xs:string, xs:integer) as function(*)) {
     templates:resolve(2, $func, $resolver)
 };
 
-declare %private function templates:resolve($arity as xs:int, $func as xs:string,
-    $resolver as function(xs:string, xs:int) as function(*)) {
+declare %private function templates:resolve($arity as xs:integer, $func as xs:string,
+    $resolver as function(xs:string, xs:integer) as function(*)) {
     let $fn := $resolver($func, $arity)
     return
         if (exists($fn)) then
@@ -342,8 +342,12 @@ declare %private function templates:cast($values as item()*, $targetType as xs:s
             switch ($targetType)
                 case "xs:string" return
                     string($value)
-                case "xs:integer" case "xs:int" case "xs:long" return
+                case "xs:integer" return
                     xs:integer($value)
+                case "xs:int" return
+                    xs:int($value)
+                case "xs:long" return
+                    xs:long($value)
                 case "xs:decimal" return
                     xs:decimal($value)
                 case "xs:float" case "xs:double" return
