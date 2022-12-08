@@ -463,9 +463,7 @@ declare %private
 function templates:parse-options ($model, $options as xs:string) as map(*)* {
     for $option in tokenize($options, "\s*,\s*")
     let $key-value-pair := tokenize($option, "\s*=\s*")
-    let $problematic-key :=
-        string-length($key-value-pair[1]) eq 0
-            or $key-value-pair[1] eq $templates:CONFIGURATION
+    let $problematic-key := $key-value-pair[1] = ("", $templates:CONFIGURATION)
     return
         if (templates:do-stop($problematic-key, $model)) then
             error($templates:E_ILLEGAL_OPTION,
