@@ -565,7 +565,7 @@ function templates:input (
 
 declare %private
 function templates:select (
-    $node as element(select), $model
+    $node as element(select), $model as map(*)
 ) as element(select) {
     let $value := templates:resolve-key($model, $node/@name/string())
     let $options := $node/option
@@ -575,14 +575,14 @@ function templates:select (
             if (empty($value)) then $options
             else
                 for $option in $options
-                let $selected := $option/@value = $value
-                    or $option/string() = $value
+                let $selected := 
+                    if ($option/@value = $value or $option/string() = $value)
+                    then attribute selected { "selected" }
+                    else ()
                 return
                     element option {
                         $option/@* except $option/@selected,
-                        if ($selected)
-                        then attribute selected { "selected" }
-                        else (),
+                        $selected,
                         $option/node()
                     }
         }
