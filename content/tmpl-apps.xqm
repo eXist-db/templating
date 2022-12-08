@@ -1,12 +1,12 @@
 xquery version "3.1";
 
 (:~
- : HTML templating module: utility template functions.
- : Newly added templating functions should go here and not into templates.xqm.
+ : HTML templating module: cross app resolution
  :
  : @author Wolfgang Meier
-:)
-module namespace apps="http://exist-db.org/xquery/html-templating/apps";
+ : @contributor Juri Leino
+ :)
+module namespace tmpl-apps="http://exist-db.org/xquery/html-templating/apps";
 
 declare namespace expath="http://expath.org/ns/pkg";
 declare namespace repo="http://exist-db.org/xquery/repo";
@@ -14,7 +14,8 @@ declare namespace repo="http://exist-db.org/xquery/repo";
 import module namespace templates="http://exist-db.org/xquery/html-templating";
 
 
-declare variable $apps:default-not-found := "/404.html#";
+declare variable $tmpl-apps:default-not-found := 
+    request:get-context-path() || "/404.html#";
 
 (:~
  : Resolve the expath application package identified by $abbrev. If an installed
@@ -30,30 +31,30 @@ declare variable $apps:default-not-found := "/404.html#";
  :)
 declare 
     %templates:wrap
-function apps:by-abbrev ($node as node(), $model as map(*), $abbrev as xs:string) as map(*) {
-    let $packages := apps:get-packages()
+function tmpl-apps:by-abbrev ($node as node(), $model as map(*), $abbrev as xs:string) as map(*) {
+    let $packages := tmpl-apps:get-packages()
     let $abbrevList := tokenize($abbrev, '\s*,\s*')
     let $resolved :=
         for $abbrev in $abbrevList
-        let $url := apps:get-url-from-repo($model, $packages, $abbrev)
+        let $url := tmpl-apps:get-url-from-repo($model, $packages, $abbrev)
         return
             map { $abbrev : $url }
 
     return map:put($model, 'apps', map:merge($resolved))
 };
 
-declare function apps:get-url-from-repo(
+declare function tmpl-apps:get-url-from-repo(
     $model as map(*),
     $packages as document-node()*,
     $abbrev as xs:string
 ) as xs:string* {
     let $package := $packages/expath:package[@abbrev = $abbrev]
     return
-        if (empty($package)) then apps:not-found($model, $abbrev)
+        if (empty($package)) then tmpl-apps:not-found($model, $abbrev)
         else
-            let $repo := apps:safe-load-package-info($package/@name, "repo.xml")
+            let $repo := tmpl-apps:safe-load-package-info($package/@name, "repo.xml")
             return
-                if (empty($repo)) then apps:not-found($model, $abbrev)
+                if (empty($repo)) then tmpl-apps:not-found($model, $abbrev)
                 else string-join((
                     request:get-context-path(),
                     request:get-attribute("$exist:prefix"), 
@@ -61,20 +62,16 @@ declare function apps:get-url-from-repo(
                 ))
 };
 
-declare function apps:not-found ($model, $abbrev) {
-    string-join((
-        request:get-context-path(),
-        $apps:default-not-found
-        (: ,$abbrev :)
-    ))
+declare function tmpl-apps:not-found ($model, $abbrev) {
+    $tmpl-apps:default-not-found (: ,$abbrev :)
 };
 
-declare function apps:get-packages () as document-node()* {
+declare function tmpl-apps:get-packages () as document-node()* {
     for $uri in repo:list()
-    return apps:safe-load-package-info($uri, "expath-pkg.xml")
+    return tmpl-apps:safe-load-package-info($uri, "expath-pkg.xml")
 };
 
-declare function apps:safe-load-package-info ($uri as xs:string, $resource as xs:string) as node()? {
+declare function tmpl-apps:safe-load-package-info ($uri as xs:string, $resource as xs:string) as node()? {
     try {
         repo:get-resource($uri, $resource)
         => util:binary-to-string()
