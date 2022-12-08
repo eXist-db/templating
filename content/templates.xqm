@@ -193,10 +193,10 @@ declare function templates:get-app-root ($model as map(*)) as xs:string? {
 };
 
 declare function templates:get-root ($model as map(*)) as xs:string? {
-    let $root := $model($templates:CONFIGURATION)($templates:CONFIG_ROOT)
-    return
-        if ($root) then $root
-        else templates:get-app-root($model)
+    (
+        $model($templates:CONFIGURATION)($templates:CONFIG_ROOT),
+        $model($templates:CONFIGURATION)($templates:CONFIG_APP_ROOT)
+    )[1]
 };
 
 (:~
