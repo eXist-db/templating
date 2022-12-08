@@ -62,8 +62,8 @@ declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
 (: default max arity :)
 declare variable $templates:MAX_ARITY := 8;
 
-(: default parameter resolution strategies :)
-declare %private
+(: legacy parameter resolution strategies :)
+declare
 variable $templates:lookup-param-from-restserver := (
     request:get-parameter(?, ()),
     session:get-attribute#1,
