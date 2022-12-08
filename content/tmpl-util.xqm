@@ -18,11 +18,11 @@ function tmpl-util:cast ($values as item()*, $targetType as xs:string) {
             switch ($targetType)
                 case "xs:boolean"  return xs:boolean($value)
                 case "xs:string"   return string($value)
-                case "xs:integer"
-                case "xs:int"
-                case "xs:long"     return xs:integer($value)
+                case "xs:integer"  return xs:integer($value)
+                case "xs:int"      return xs:int($value)
+                case "xs:long"     return xs:long($value)
                 case "xs:decimal"  return xs:decimal($value)
-                case "xs:float"
+                case "xs:float"    return xs:float($value)
                 case "xs:double"   return xs:double($value)
                 case "xs:date"     return xs:date($value)
                 case "xs:dateTime" return xs:dateTime($value)
