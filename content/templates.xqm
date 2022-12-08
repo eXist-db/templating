@@ -17,6 +17,8 @@ import module namespace request="http://exist-db.org/xquery/request";
 import module namespace session="http://exist-db.org/xquery/session";
 import module namespace util="http://exist-db.org/xquery/util";
 
+import module namespace tmpl-util="http://exist-db.org/xquery/html-templating/utility";
+
 (: configuration root key :)
 declare variable $templates:CONFIGURATION := "configuration";
 (: configuration setting keys :)
@@ -31,6 +33,9 @@ declare variable $templates:CONFIG_USE_CLASS_SYNTAX := "class-lookup";
 declare variable $templates:CONFIG_MAX_ARITY := "max-arity";
 declare variable $templates:CONFIG_START_DELIMITER := "start-delimiter";
 declare variable $templates:CONFIG_END_DELIMITER := "end-delimiter";
+
+declare variable $templates:PLACEHOLDER_CHECK := "placeholder-check";
+declare variable $templates:PLACEHOLDER_REPLACE := "placeholder-replace";
 
 declare variable $templates:ATTR_FILTER_FUNCTION := "attribute-filter-function";
 declare variable $templates:SEARCH_IN_CLASS := false();
@@ -183,7 +188,7 @@ declare function templates:process (
  : returning the value of the first result
  :)
 declare function templates:resolve-key ($model as map(*), $key as xs:string) {
-    templates:first-result(
+    tmpl-util:first-result(
         $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER),
         $key)
 };
@@ -315,17 +320,13 @@ declare function templates:surround (
  : cannot be resolved, a lookup resolves to multiple items, a map or an array.
  :)
 declare function templates:parse-params ($node as node(), $model as map(*)) {
-    let $delimiters := [
-        $model($templates:CONFIGURATION)($templates:CONFIG_START_DELIMITER),
-        $model($templates:CONFIGURATION)($templates:CONFIG_END_DELIMITER)
-    ]
     let $attributes := $node/@* except $node/@data-template
     let $node :=
         element { node-name($node) } {
-            templates:expand-attributes($attributes, $model, $delimiters),
-            templates:expand-params($node/node(), $model, $delimiters)
+            templates:expand-attributes($attributes, $model),
+            templates:expand-params($node/node(), $model)
         }
-    return templates:process-children($node, $model)
+    return templates:process-element($node, $model)
 };
 
 declare function templates:if-parameter-set (
@@ -633,46 +634,49 @@ function templates:model-resolve (
 };
 
 declare %private
-function templates:expand-params (
-    $nodes as node()*, $model as map(*),
-    $delimiters as array(*)
-) {
+function templates:expand-params ($nodes as node()*, $model as map(*)) {
     for $node in $nodes
     return
         typeswitch($node)
             case element() return
                 element { node-name($node) } {
-                    templates:expand-attributes($node/@*, $model, $delimiters),
-                    templates:expand-params($node/node(), $model, $delimiters)
+                    templates:expand-attributes($node/@*, $model),
+                    templates:expand-params($node/node(), $model)
                 }
             case text() return
-                if (matches($node, $delimiters?1 || ".+?" || $delimiters?2))
+                (: --- :)
+                if (templates:has-placeholder($node, $model))
                 then text {
-                    templates:expand-text($node, $model, $delimiters) }
+                    templates:expand-text($node, $model) }
                 else $node
             default return $node
 };
 
 declare %private
 function templates:expand-attributes (
-    $attrs as attribute()*, $model as map(*),
-    $delimiters as array(*)
+    $attrs as attribute()*, $model as map(*)
 ) as attribute()* {
     for $attr in $attrs
     return
-        if (matches($attr, $delimiters?1 || ".+?" || $delimiters?2))
+        (: --- :)
+        if (templates:has-placeholder($attr, $model))
         then attribute { node-name($attr) } {
-            templates:expand-text($attr, $model, $delimiters) }
+            templates:expand-text($attr, $model) }
         else $attr
 };
 
 declare %private
+function templates:has-placeholder ($node as node(), $model as map(*)) {
+    matches($node,
+        $model($templates:CONFIGURATION)($templates:PLACEHOLDER_CHECK))
+};
+
+declare %private
 function templates:expand-text (
-    $text as xs:string, $model as map(*),
-    $delimiters as array(*)
+    $text as xs:string, $model as map(*)
 ) as xs:string* {
-    let $parsed := analyze-string($text,
-        $delimiters?1 || "(.+?)(?::(.+?))?" || $delimiters?2)
+    let $parsed := analyze-string($text, 
+        $model($templates:CONFIGURATION)($templates:PLACEHOLDER_REPLACE))
     let $result :=
         for $token in $parsed/node()
         return
@@ -691,12 +695,12 @@ function templates:handle-matches (
 ) as xs:string* {
     let $key := $token/fn:group[1]/string()
     let $default-value := $token/fn:group[2]/string()
+    let $resolvers := (
+        $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER),
+        templates:expand-from-model($model, ?)
+    )
 
-    let $resolved-value :=
-        templates:first-result((
-            $model($templates:CONFIGURATION)($templates:CONFIG_PARAM_RESOLVER),
-            templates:expand-from-model($model, ?)),
-            $key)
+    let $resolved-value := tmpl-util:first-result($resolvers, $key)
 
     let $values :=
         if (exists($resolved-value))
@@ -760,14 +764,28 @@ function templates:configure (
 ) as map(*) {
     let $model := map:merge(($maybe-model, map {}))
 
+    (: pre-process :)
     let $mapped-config-options :=
         map:for-each(
             $maybe-config, templates:map-configuration-options#2)
 
-    let $configuration := map:merge((
+    (: merge with defaults :)
+    let $with-defaults := map:merge((
         $templates:DEFAULT_CONFIG,
         $mapped-config-options
     ), map {"duplicates": "use-last"})
+
+    (: post-process :)
+    let $start := $with-defaults($templates:CONFIG_START_DELIMITER)
+    let $end := $with-defaults($templates:CONFIG_END_DELIMITER)
+
+    let $configuration := map:merge((
+        $with-defaults,
+        map {
+            $templates:PLACEHOLDER_REPLACE : $start || "(.+?)(?::(.+?))?" || $end,
+            $templates:PLACEHOLDER_CHECK   : $start || ".+?" || $end
+        }
+    ))
 
     return
         map:put($model, $templates:CONFIGURATION, $configuration)
@@ -815,36 +833,6 @@ function templates:function-resolver (
 };
 
 declare %private
-function templates:qname-resolver ($name as xs:string) as xs:QName {
-    xs:QName($name)
-};
-
-declare %private
-function templates:first-result ($fns as function(*)*, $arg) as item()* {
-    (: fold-left with no context :)
-    (: fold-left($fns, (), function ($res, $next) {
-        if (exists($res)) then $res else $next($arg)
-    }) :)
-
-    (: fold-left with dynamic context :)
-    (: fold-left($fns, [$arg, ()], templates:resolve-reducer#2)?2 :)
-
-    (: recursion :)
-    if (empty($fns)) then ()
-    else
-        let $result := head($fns)($arg)
-        return
-            if (exists($result)) then $result
-            else templates:first-result(tail($fns), $arg)
-};
-
-declare %private
-function templates:resolve-reducer ($acc, $next) {
-    if (exists($acc?2)) then $acc
-    else array:put($acc, 2, $next($acc?1))
-};
-
-declare %private
 function templates:process-children ($nodes as node()*, $model as map(*)) {
     for $node in $nodes
     return
@@ -858,7 +846,7 @@ function templates:process-children ($nodes as node()*, $model as map(*)) {
 declare %private
 function templates:process-element ($node as node(), $model as map(*)) {
     let $config := $model($templates:CONFIGURATION)
-    let $tmpl-func := templates:get-template-function($node, $config)
+    let $tmpl-func := templates:get-template-function($node, $model)
     return
         if (empty($tmpl-func)) then
             (: Templating function not found: just copy the element :)
@@ -869,25 +857,39 @@ function templates:process-element ($node as node(), $model as map(*)) {
 
 declare %private
 function templates:get-template-function (
-    $node as element(), $config as map(*)
+    $node as element(), $model as map(*)
 ) as function(*)? {
-    try {
-        let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
-        return
-            if ($attr)
-            then
-                templates:resolve($attr/string(), $config)
-            else if ($config?($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
-                util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[templates:is-qname(.)])),
-                let $first-qname-match := head(tokenize($node/@class, "\s+")[templates:is-qname(.)])
-                return if (empty($first-qname-match)) then () else templates:resolve($first-qname-match, $config)
+    let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
+    return
+        if (empty($attr)) then (
+            if ($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
+                util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])),
+                let $first-qname-match := head(tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])
+                return if (empty($first-qname-match)) then () else
+                    tmpl-util:resolve-fn(
+                        $first-qname-match, 
+                        $model($templates:CONFIGURATION)($templates:CONFIG_FN_RESOLVER),
+                        $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY)
+                    )
             ) else ()
-    }
-    catch * {
-        error($err:code,
-            "Error Processing node: " || serialize($node) ||
-            " Reason: &#10;" || $err:description)
-    }
+        )
+        else
+            let $f := tmpl-util:resolve-fn($attr/string(), 
+                $model($templates:CONFIGURATION)($templates:CONFIG_FN_RESOLVER),
+                $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY)
+            )
+            return
+                if (templates:do-stop(empty($f), $model))
+                then
+                    error($templates:E_FN_NOT_FOUND,
+                        "Error Processing node: " || serialize($node) ||
+                        " Reason: &#10;" ||
+                        "No template function found for call " || $attr ||
+                        " (Maximum arity is set to " ||
+                        $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY) ||
+                        ". You can set a higher maximum arity using " ||
+                        "$templates:CONFIG_MAX_ARITY in your configuration.)")
+                else $f
 };
 
 declare %private
@@ -960,11 +962,11 @@ function templates:map-argument(
         $parameters,
         templates:arg-from-annotation(?, $arg)
     )
-    let $param := templates:first-result($resolvers, $var)
+    let $param := tmpl-util:first-result($resolvers, $var)
 
     return
         try {
-            templates:cast($param, $type)
+            tmpl-util:cast($param, $type)
         } catch * {
             error($templates:E_TYPE,
                 "Failed to cast parameter value '" || $param || "' to the " ||
@@ -987,38 +989,6 @@ function templates:arg-from-annotation (
 };
 
 declare %private
-function templates:resolve(
-    $function-name as xs:string,
-    $config as map(*)
-) as function(*)? {
-    let $f := templates:resolve($function-name, $config, 2)
-
-    return
-        if (empty($f) and $config($templates:CONFIG_STOP_ON_ERROR))
-        then
-            error($templates:E_FN_NOT_FOUND,
-                "No template function found for call " || $function-name ||
-                " (Maximum arity is set to " ||
-                $config($templates:CONFIG_MAX_ARITY) ||
-                ". You can set a higher maximum arity using " ||
-                "$templates:CONFIG_MAX_ARITY in your configuration.)")
-        else $f
-};
-
-declare %private
-function templates:resolve (
-    $function-name as xs:string,
-    $config as map(*),
-    $arity as xs:integer
-) as function(*)? {
-    let $fn := $config($templates:CONFIG_FN_RESOLVER)($function-name, $arity)
-    return
-        if (exists($fn)) then $fn
-        else if ($arity ge $config($templates:CONFIG_MAX_ARITY)) then ()
-        else templates:resolve($function-name, $config, $arity + 1)
-};
-
-declare %private
 function templates:parameters-from-attr ($node as node()) as map(*) {
     map:merge(
         for $attr in $node/@*[templates:is-template-attribute(.)]
@@ -1034,46 +1004,4 @@ function templates:parse-attr (
         local-name($attr), $templates:ATTR_DATA_TEMPLATE || "-")
     let $value := $attr/string()
     return map { $key : $value }
-};
-
-declare %private
-function templates:is-qname ($class as xs:string) as xs:boolean {
-    matches($class, "^[^:]+:[^:]+")
-};
-
-declare %private
-function templates:cast ($values as item()*, $targetType as xs:string) {
-    for $value in $values
-    return
-        if ($targetType != "xs:string" and string-length($value) = 0) then
-            (: treat "" as empty sequence :)
-            ()
-        else
-            switch ($targetType)
-                case "xs:string" return
-                    string($value)
-                case "xs:integer" return
-                    xs:integer($value)
-                case "xs:int" return
-                    xs:int($value)
-                case "xs:long" return
-                    xs:long($value)
-                case "xs:decimal" return
-                    xs:decimal($value)
-                case "xs:float" case "xs:double" return
-                    xs:double($value)
-                case "xs:date" return
-                    xs:date($value)
-                case "xs:dateTime" return
-                    xs:dateTime($value)
-                case "xs:time" return
-                    xs:time($value)
-                case "xs:boolean" return
-                    xs:boolean($value)
-                case "element()" return
-                    parse-xml($value)/*
-                case "text()" return
-                    text { string($value) }
-                default return
-                    $value
 };

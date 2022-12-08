@@ -16,6 +16,7 @@ function tmpl-util:cast ($values as item()*, $targetType as xs:string) {
         then ()
         else
             switch ($targetType)
+                case "xs:boolean"  return xs:boolean($value)
                 case "xs:string"   return string($value)
                 case "xs:integer"
                 case "xs:int"

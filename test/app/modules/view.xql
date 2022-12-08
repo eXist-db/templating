@@ -73,7 +73,11 @@ return
 templates:apply(
     request:get-data(),
     $app:lookup,
-    map { "my-model-item": 'xxx' },
+    map {
+        "page-title": "This is the title",
+        "my-model-item": 'xxx', 
+        'includes': map{ 'menubar' : 'included.html' }
+    },
     $config-with-class-syntax-maybe-set)
 
 (: alternative :)
