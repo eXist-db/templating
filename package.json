@@ -1,6 +1,6 @@
 {
 	"name": "templating",
-	"version": "1.0.4",
+	"version": "1.1.0",
 	"description": "eXist-db HTML Templating Library",
 	"homepage": "https://github.com/eXist-db/templating#readme",
 	"bugs": "https://github.com/eXist-db/templating/issues",
