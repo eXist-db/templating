@@ -10,7 +10,7 @@ xquery version "3.1";
 :)
 module namespace templates="http://exist-db.org/xquery/html-templating";
 
-import module namespace inspect="http://exist-db.org/xquery/inspection" at "java:org.exist.xquery.functions.inspect.InspectionModule";
+import module namespace inspect="http://exist-db.org/xquery/inspection";
 import module namespace map="http://www.w3.org/2005/xpath-functions/map";
 import module namespace request="http://exist-db.org/xquery/request";
 import module namespace session="http://exist-db.org/xquery/session";
