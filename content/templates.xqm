@@ -677,7 +677,7 @@ function templates:has-placeholder ($node as node(), $model as map(*)) {
 declare %private
 function templates:expand-text (
     $text as xs:string, $model as map(*)
-) as xs:string* {
+) as xs:string {
     let $parsed := analyze-string($text, 
         $model($templates:CONFIGURATION)($templates:PLACEHOLDER_REPLACE))
     let $result :=
