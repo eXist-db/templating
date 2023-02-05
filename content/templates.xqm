@@ -526,15 +526,15 @@ function templates:is-template-attribute (
 
 declare %private
 function templates:form (
-    $node as element(form), $model as map(*)
+    $form as element(form), $model as map(*)
 ) as element(form) {
-    element { node-name($node) }{
-        $node/@* except $node/@action,
+    element form {
+        $form/@* except $form/@action,
         attribute action {
             templates:resolve-key($model, "form-action")
         },
-        for $n in $node/node()
-        return templates:form-control($n, $model)
+        for $child-node in $form/node()
+        return templates:form-control($child-node, $model)
     }
 };
 
@@ -546,22 +546,25 @@ function templates:input (
     return
         if (empty($value)) then $node
         else
-            switch ($node/@type)
-                case "checkbox"
-                case "radio" return
-                    element { node-name($node) } {
+            let $attributes :=
+                switch ($node/@type)
+                    case "checkbox"
+                    case "radio" return (
                         $node/@* except $node/@checked,
                         if ($node/@value = $value or $value = "true")
                         then attribute checked { "checked" }
-                        else (),
-                        $node/node()
-                    }
-                default return
-                    element { node-name($node) } {
+                        else ()
+                    )
+                    default return (
                         $node/@* except $node/@value,
-                        attribute value { $value },
-                        $node/node()
-                    }
+                        attribute value { $value }
+                    )
+
+            return
+                element input {
+                    $attributes,
+                    $node/node()
+                }
 };
 
 declare %private
