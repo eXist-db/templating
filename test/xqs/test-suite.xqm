@@ -296,7 +296,7 @@ function tt:render-with-parse-params-custom-delimiter() {
     templates:render(
         <html><body>
             <p data-template="templates:each" data-template-from="data" data-template-to="item">
-                <span data-template="templates:parse-params">[[item]]</span>
+                <span>[[item]]</span>
             </p>
         </body></html>,
         map { 'data': $tt:data//@n },

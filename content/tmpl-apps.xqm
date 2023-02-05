@@ -23,7 +23,7 @@ declare variable $tmpl-apps:default-not-found :=
  : will correspond to $abbrev and its value to the absolute URI path at which the
  : root of the application can be found.
  :
- : Use e.g. with templates:parse-params to expand URLs.
+ : Use ${apps?my-app} to expand a URL to my-app
  :
  : $abbrev may list more than one package abbreviation separated by ",".
  :

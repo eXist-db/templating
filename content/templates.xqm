@@ -298,37 +298,6 @@ declare function templates:surround (
                 templates:process-children($merged, $model)
 };
 
-(:~
- : Recursively expand template expressions appearing in attributes or text
- : content, trying to expand them from request/session parameters or the
- : current model.
- :
- : Template expressions by default should have the form
- : ${paramName:default text}.
- : You can change the used delimiters from `${` and `}` to something else by
- : overwriting the parameters $start and $end.
- :
- : Specifying a default is optional. If there is no default and the parameter
- : cannot be expanded, the empty string is output.
- :
- : To support navigating the map hierarchy of the model, paramName may be a
- : sequence of map keys separated by ?, i.e. ${address?street} would first
- : retrieve the map property called "address" and then look up the property
- : "street" on it.
- :
- : The templating function should fail gracefully if a parameter or map lookup
- : cannot be resolved, a lookup resolves to multiple items, a map or an array.
- :)
-declare function templates:parse-params ($node as node(), $model as map(*)) {
-    let $attributes := $node/@* except $node/@data-template
-    let $node :=
-        element { node-name($node) } {
-            templates:expand-attributes($attributes, $model),
-            templates:expand-params($node/node(), $model)
-        }
-    return templates:process-element($node, $model)
-};
-
 declare function templates:if-parameter-set (
     $node as node(), $model as map(*),
     $param as xs:string
@@ -597,7 +566,8 @@ function templates:copy-node (
     $node as element(), $model as map(*)
 ) as element() {
     element { node-name($node) } {
-        $node/@*,
+        templates:expand-attributes(
+            templates:filtered-attributes($node), $model),
         templates:process-children($node/node(), $model)
     }
 };
@@ -637,31 +607,11 @@ function templates:model-resolve (
 };
 
 declare %private
-function templates:expand-params ($nodes as node()*, $model as map(*)) {
-    for $node in $nodes
-    return
-        typeswitch($node)
-            case element() return
-                element { node-name($node) } {
-                    templates:expand-attributes($node/@*, $model),
-                    templates:expand-params($node/node(), $model)
-                }
-            case text() return
-                (: --- :)
-                if (templates:has-placeholder($node, $model))
-                then text {
-                    templates:expand-text($node, $model) }
-                else $node
-            default return $node
-};
-
-declare %private
 function templates:expand-attributes (
     $attrs as attribute()*, $model as map(*)
 ) as attribute()* {
     for $attr in $attrs
     return
-        (: --- :)
         if (templates:has-placeholder($attr, $model))
         then attribute { node-name($attr) } {
             templates:expand-text($attr, $model) }
@@ -669,7 +619,17 @@ function templates:expand-attributes (
 };
 
 declare %private
-function templates:has-placeholder ($node as node(), $model as map(*)) {
+function templates:expand-attributes-from-element (
+    $element as element(), $model as map(*)
+) as element() {
+    element { node-name($element) } {
+        templates:expand-attributes($element/@*, $model),
+        $element/node()
+    }
+};
+
+declare %private
+function templates:has-placeholder ($node as node(), $model as map(*)) as xs:boolean {
     matches($node,
         $model($templates:CONFIGURATION)($templates:PLACEHOLDER_CHECK))
 };
@@ -842,10 +802,38 @@ function templates:process-children ($nodes as node()*, $model as map(*)) {
         typeswitch ($node)
             case document-node() return templates:process-children($node/node(), $model)
             case element() return templates:process-element($node, $model)
+            case text() return templates:process-text($node, $model)
             default return $node
 };
 
+declare %private
+function templates:process-text ($node as text(), $model as map(*)) as text() {
+    if (templates:has-placeholder($node, $model))
+    then text { templates:expand-text($node, $model) }
+    else $node
+};
 
+(:~
+ : Recursively expand template expressions appearing in attributes or text
+ : content, trying to expand them from request/session parameters or the
+ : current model.
+ :
+ : Template expressions by default should have the form
+ : ${paramName:default text}.
+ : You can change the used delimiters from `${` and `}` to something else by
+ : overwriting the configuration parameters $start and $end.
+ :
+ : Specifying a default is optional. If there is no default and the parameter
+ : cannot be expanded, the empty string is output.
+ :
+ : To support navigating the map hierarchy of the model, paramName may be a
+ : sequence of map keys separated by ?, i.e. ${address?street} would first
+ : retrieve the map property called "address" and then look up the property
+ : "street" on it.
+ :
+ : The templating function should fail gracefully if a parameter or map lookup
+ : cannot be resolved, a lookup resolves to multiple items, a map or an array.
+ :)
 declare %private
 function templates:process-element ($node as node(), $model as map(*)) {
     let $config := $model($templates:CONFIGURATION)
@@ -855,16 +843,23 @@ function templates:process-element ($node as node(), $model as map(*)) {
             (: Templating function not found: just copy the element :)
             templates:copy-node($node, $model)
         else
-            templates:call-by-introspection($node, $model, $config, $tmpl-func)
+            templates:expand-attributes-from-element($node, $model)
+            => templates:call-by-introspection($model, $config, $tmpl-func)
 };
 
+(:~
+ : Check if the current $node has a template function attribute declared
+ : the obsolete declaration for 'templates:parse-params' is ignored and
+ : handled as if no declaration was found.
+ :)
 declare %private
 function templates:get-template-function (
     $node as element(), $model as map(*)
 ) as function(*)? {
     let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
     return
-        if (empty($attr)) then (
+        if ($attr eq "templates:parse-params") then (
+        ) else if (empty($attr)) then (
             if ($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
                 util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])),
                 let $first-qname-match := head(tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])

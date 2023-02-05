@@ -3,7 +3,7 @@
         <title>Test Resolve Apps</title>
     </head>
     <body data-template="apps:by-abbrev" data-template-abbrev="templating-test, does-not-exist">
-        <main data-template="templates:parse-params">
+        <main>
             <p id="test1">${apps?templating-test}</p>
             <p id="test2">${apps?does-not-exist}</p>
         </main>

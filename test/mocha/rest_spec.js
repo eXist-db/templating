@@ -291,6 +291,26 @@ describe("Supports parsing parameters", function () {
 		expect(para.innerHTML).to.equal('{"test":"TEST2"}');
   });
 
+  describe("with legacy template:parse-params", function () {
+    let legacyResultData
+    before(async function () {
+      try {
+        const res = await axiosInstance.get("parse-params-legacy.html", {
+            params: {
+              description: 'my title',
+              link: 'foo'
+            }
+        });
+        legacyResultData = res.data
+      }
+      catch (e) {
+        console.error(e.response.data)
+      }  
+    })
+    it("yields the exact same result", function () {
+      expect(legacyResultData).to.equal(res.data)
+    })
+  })
 });
 
 describe('Fail if template function is missing', function() {
