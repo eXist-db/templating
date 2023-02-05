@@ -342,14 +342,14 @@ declare function templates:if-parameter-set (
 };
 
 declare function templates:if-parameter-unset (
-    $node as node(), $model as map(*),
+    $element as element(), $model as map(*),
     $param as xs:string
 ) as node()* {
     let $values := templates:resolve-key($model, $param)
 
     return
         if (empty($values) or string-length(string-join($values)) eq 0) then
-            templates:process-children($node/node(), $model)
+            templates:process-children($element/node(), $model)
         else
             ()
 };
