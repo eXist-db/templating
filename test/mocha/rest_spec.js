@@ -290,7 +290,7 @@ describe("Supports parsing parameters", function () {
   });
 
   describe("with legacy template:parse-params", function () {
-    let legacyResultData
+    let legacyResultData, errorResponse
     before(async function () {
       try {
         const res = await axiosInstance.get("parse-params-legacy.html", {
@@ -302,11 +302,15 @@ describe("Supports parsing parameters", function () {
         legacyResultData = res.data
       }
       catch (e) {
-        console.error(e.response.data)
-      }  
+        errorResponse = e.response
+      }
     })
-    it("yields the exact same result", function () {
-      expect(legacyResultData).to.equal(res.data)
+    it("does not render", function () {
+      expect(legacyResultData).to.be.undefined
+    })
+    it("throws a meaningful error", function () {
+      expect(errorResponse.status).to.equal(400);
+      expect(errorResponse.data).to.contain("err:XPST0081 No namespace defined for prefix lib:parse-params");
     })
   })
 });

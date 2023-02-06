@@ -848,9 +848,9 @@ function templates:process-element ($node as node(), $model as map(*)) {
 };
 
 (:~
- : Check if the current $node has a template function attribute declared
- : the obsolete declaration for 'templates:parse-params' is ignored and
- : handled as if no declaration was found.
+ : Check if the current $node has a template function attribute declared.
+ : An exception is thrown when the function could not be found and
+ : $templates:CONFIG_STOP_ON_ERROR is set to true
  :)
 declare %private
 function templates:get-template-function (
@@ -858,8 +858,7 @@ function templates:get-template-function (
 ) as function(*)? {
     let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
     return
-        if ($attr eq "templates:parse-params") then (
-        ) else if (empty($attr)) then (
+        if (empty($attr)) then (
             if ($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
                 util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])),
                 let $first-qname-match := head(tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])
