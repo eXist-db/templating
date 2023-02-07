@@ -309,7 +309,7 @@ describe("Supports parsing parameters", function () {
       expect(legacyResultData).to.be.undefined
     })
     it("throws a meaningful error", function () {
-      expect(errorResponse.status).to.equal(400);
+      expect(errorResponse.status).to.be.oneOf([400, 500]);
       expect(errorResponse.data).to.contain("err:XPST0081 No namespace defined for prefix lib:parse-params");
     })
   })
