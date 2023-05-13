@@ -98,6 +98,15 @@ function test:date($node as node(), $model as map(*), $date as xs:date) {
     day-from-date($date)
 };
 
+declare 
+    %templates:wrap
+function test:boolean($node as node(), $model as map(*), $boolean as xs:boolean) {
+    if ($boolean instance of xs:boolean) then
+        "yes"
+    else
+        "no"
+};
+
 declare function test:custom-model($node as node(), $model as map(*)) {
     $model?('my-model-item')
 };

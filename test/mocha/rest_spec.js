@@ -88,7 +88,8 @@ describe('expand HTML template types.html', function () {
       params: {
         n1: 20,
         n2: 30.25,
-        date: '2021-02-07+01:00'
+        date: '2021-02-07+01:00',
+        boolean: 'true'
       }
     });
     const { window } = new JSDOM(res.data);
@@ -109,6 +110,10 @@ describe('expand HTML template types.html', function () {
   it('converts dates', async function () {
     expect(document.querySelector('p.date').innerHTML).to.equal('7');
   });
+
+  it('converts booleans', async function () {
+    expect(document.querySelector('p.boolean').innerHTML).to.equal('yes');
+  });
 });
 
 describe('expand HTML template types-fail.html', function () {
@@ -118,7 +123,8 @@ describe('expand HTML template types-fail.html', function () {
       params: {
         n1: 'abc',
         n2: 30.25,
-        date: '2021-02-07+01:00'
+        date: '2021-02-07+01:00',
+        boolean: 'true'
       }
     })
       .catch(error => {

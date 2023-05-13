@@ -358,6 +358,8 @@ declare %private function templates:cast($values as item()*, $targetType as xs:s
                     xs:dateTime($value)
                 case "xs:time" return
                     xs:time($value)
+                case "xs:boolean" return
+                    xs:boolean($value)
                 case "element()" return
                     parse-xml($value)/*
                 case "text()" return
