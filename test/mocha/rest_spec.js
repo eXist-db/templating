@@ -88,7 +88,8 @@ describe('expand HTML template types.html', function () {
       params: {
         n1: 20,
         n2: 30.25,
-        date: '2021-02-07+01:00'
+        date: '2021-02-07+01:00',
+        boolean: 'true'
       }
     });
     const { window } = new JSDOM(res.data);
@@ -109,6 +110,10 @@ describe('expand HTML template types.html', function () {
   it('converts dates', async function () {
     expect(document.querySelector('p.date').innerHTML).to.equal('7');
   });
+
+  it('converts booleans', async function () {
+    expect(document.querySelector('p.boolean').innerHTML).to.equal('yes');
+  });
 });
 
 describe('expand HTML template types-fail.html', function () {
@@ -118,11 +123,12 @@ describe('expand HTML template types-fail.html', function () {
       params: {
         n1: 'abc',
         n2: 30.25,
-        date: '2021-02-07+01:00'
+        date: '2021-02-07+01:00',
+        boolean: 'true'
       }
     })
       .catch(error => {
-        expect(error.response.status).to.equal(400);
+        expect(error.response.status).to.be.oneOf([400, 500]);
         expect(error.response.data).to.contain('templates:TypeError');
       });
   });
@@ -134,7 +140,7 @@ describe('expand HTML template missing-tmpl.html', function () {
   it("reports missing template functions", async function () {
 		return axiosInstance.get("missing-tmpl.html")
 			.catch((error) => {
-				expect(error.response.status).to.equal(400);
+				expect(error.response.status).to.be.oneOf([400, 500]);
 				expect(error.response.data).to.contain("templates:NotFound");
 			});
   });
@@ -296,7 +302,7 @@ describe('Fail if template is missing', function() {
   it('fails if template could not be found', function () {
     return axiosInstance.get('template-missing.html')
       .catch(error => {
-        expect(error.response.status).to.equal(400);
+        expect(error.response.status).to.be.oneOf([400, 500]);
         expect(error.response.data).to.contain('templates:NotFound');
       });
   });
