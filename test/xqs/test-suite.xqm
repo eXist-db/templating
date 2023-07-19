@@ -4,7 +4,6 @@ xquery version "3.1";
  : XQSuite tests for the templating library.
  :
  : @author eXist-db Project
- : @version 1.0.0
  : @see http://exist-db.org
  :)
 
@@ -43,6 +42,11 @@ declare variable $tt:data :=
     </data>
 ;
 
+declare variable $tt:lookup := function ($name, $arity) {
+    function-lookup(xs:QName($name), $arity)
+};
+declare variable $tt:qname-resolve := xs:QName(?);
+
 (:~
  : minimum configuration to allow testing in XQSuite
  : as request:* is not bound to anything in this context
@@ -63,12 +67,15 @@ declare variable $tt:config-no-filter := map {
     $templates:CONFIG_FILTER_ATTRIBUTES : false()
 };
 
+declare variable $tt:config-render := map {
+    $templates:CONFIG_FN_RESOLVER : $tt:lookup,
+    $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+    $templates:CONFIG_FILTER_ATTRIBUTES : false()
+};
+
 (: parameters cannot be resolved with default resolver in XQSuite context :)
 declare function tt:resolver ($m) { () };
 
-declare function tt:lookup ($fn as xs:string, $arity as xs:integer) as function(*)? {
-    function-lookup(xs:QName($fn), $arity)
-};
 
 (: helper function to test for the existence of data-attributes 
  : used in templating
@@ -123,7 +130,7 @@ declare
     %test:assertEmpty
 function tt:attributes-filtered-c() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//c }, 
         $tt:config-filter
     )
@@ -134,7 +141,7 @@ declare
     %test:assertEmpty
 function tt:attributes-filtered-a() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//a }, 
         $tt:config-filter
     )
@@ -145,7 +152,7 @@ declare
     %test:assertEquals("7", "23", "42", "23", "42")
 function tt:attributes-filtered-a-extra() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//a }, 
         $tt:config-filter
     )
@@ -156,7 +163,7 @@ declare
     %test:assertEquals("body", "item", "value", "item", "value")
 function tt:attributes-filtered-a-class() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//a }, 
         $tt:config-filter
     )
@@ -167,7 +174,7 @@ declare
     %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n")
 function tt:attributes-unfiltered-c() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//c }, 
         $tt:config-no-filter
     )
@@ -178,7 +185,7 @@ declare
     %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n", "templates:each", "data", "item", "tt:n")
 function tt:attributes-unfiltered-a() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//a },
         $tt:config-no-filter
     )
@@ -189,9 +196,115 @@ declare
     %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n", "templates:each", "data", "item", "tt:n")
 function tt:attributes-unfiltered-by-default() {
     templates:apply(
-        $tt:template, tt:lookup#2,
+        $tt:template, $tt:lookup,
         map { 'data': $tt:data//a },
         $tt:config-xqsuite-default
     )
     => tt:get-template-attribute-values()
+};
+
+declare
+    %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n", "templates:each", "data", "item", "tt:n")
+function tt:render-qname-resolver() {
+    templates:render(
+        $tt:template,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_QNAME_RESOLVER : $tt:qname-resolve,
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_FILTER_ATTRIBUTES : false()
+        }
+    )
+    => tt:get-template-attribute-values()
+};
+
+declare
+    %test:assertEquals("tt:tf", "templates:each", "data", "item", "tt:n", "templates:each", "data", "item", "tt:n")
+function tt:render-fn-resolver() {
+    templates:render(
+        $tt:template,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_FN_RESOLVER : $tt:lookup,
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_FILTER_ATTRIBUTES : false()
+        }
+    )
+    => tt:get-template-attribute-values()
+};
+
+declare
+    %test:assertError("err:XPST0081")
+function tt:render-no-lookup() {
+    templates:render(
+        $tt:template,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_FILTER_ATTRIBUTES : true()
+        }
+    )
+    => tt:get-template-attribute-values()
+};
+
+declare
+    %test:assertEquals(2)
+function tt:render-no-lookup-success() {
+    templates:render(
+        <html><body><p data-template="templates:each" data-template-from="data" data-template-to="item">item</p></body></html>,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_FILTER_ATTRIBUTES : true()
+        }
+    )//p => count()
+};
+
+declare
+    %test:assertError("templates:FunctionNotFound")
+function tt:render-max-arity-2() {
+    templates:render(
+        <html><body><p data-template="templates:each" data-template-from="data" data-template-to="item">item</p></body></html>,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_MAX_ARITY : 2,
+            $templates:CONFIG_STOP_ON_ERROR : true()
+        }
+    )
+};
+
+declare
+    %test:assertEquals(2)
+function tt:render-max-arity-4() {
+    templates:render(
+        <html><body>
+            <p data-template="templates:each" data-template-from="data" data-template-to="item">item</p>
+        </body></html>,
+        map { 'data': $tt:data//a },
+        map {
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_MAX_ARITY : 4,
+            $templates:CONFIG_STOP_ON_ERROR : true()
+        }
+    )//p => count()
+};
+
+declare
+    %test:assertEquals("1","3","2","str")
+function tt:render-with-parse-params-custom-delimiter() {
+    templates:render(
+        <html><body>
+            <p data-template="templates:each" data-template-from="data" data-template-to="item">
+                <span>[[item]]</span>
+            </p>
+        </body></html>,
+        map { 'data': $tt:data//@n },
+        map {
+            $templates:CONFIG_PARAM_RESOLVER : tt:resolver#1,
+            $templates:CONFIG_START_DELIMITER: '\[\[',
+            $templates:CONFIG_END_DELIMITER: '\]\]'
+        }
+    )
+    //p/span/text()
 };

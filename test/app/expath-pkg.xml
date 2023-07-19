@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package 
   xmlns="http://expath.org/ns/pkg" name="http://exist-db.org/html-templating-test"
-  abbrev="templating-test" version="1.0.0" spec="1.0">
+  abbrev="templating-test" version="2.0.0" spec="1.0">
   <title>eXist-db HTML Templating Library</title>
-  <dependency processor="http://exist-db.org" semver-min="3.0.4"/>
+  <dependency processor="http://exist-db.org" semver-min="5.4.0"/>
   <dependency package="http://exist-db.org/html-templating" semver-min="1.0.0"/>
 </package>

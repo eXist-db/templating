@@ -11,8 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
        matrix:
-         exist-version: [5.2.0, 5.4.1, release, latest]
-         node-version: [16]
+         exist-version: [5.4.0, release, latest]
     services:
       # Label used to access the service container
       exist:
@@ -24,17 +23,17 @@ jobs:
         options: >-
           --health-interval 4s
     steps:
-      # Checkout code
-      - uses: actions/checkout@v2
-      # Build Frontend
-      - name: Build Frontend Using Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@v3
+
+      # Dependencies
+      - name: Install dev-dependencies
+        uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 16
       - run: npm ci
-      
-      # Testing 
-      - name: Run Unit Tests     
+
+      # Build, install and test XAR package
+      - name: Run Unit Tests
         run: npm test
   
   # TODO: Add upload to dockerhub   

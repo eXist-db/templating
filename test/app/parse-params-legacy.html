@@ -3,14 +3,14 @@
         <title>Test Parsing Parameters</title>
     </head>
     <body data-template="app:init-data">
-        <div>
+        <div data-template="lib:parse-params">
             <p><a title="Link: ${description}" href="/api/${link}/">${description}</a></p>
             <p id="nested">Out: ${data?nested?test:not found}</p>
             <p id="default">${xxx:not found};${data?xxx:not found};${zzz}</p>
             <p id="map">${data?nested}</p>
         </div>
         <ul data-template="templates:each" data-template-from="addresses" data-template-to="address">
-            <li>${address?name}, ${address?city}</li>
+            <li data-template="lib:parse-params">${address?name}, ${address?city}</li>
         </ul>
     </body>
 </html>
