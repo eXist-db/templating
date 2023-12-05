@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 const axios = require('axios');
 const expect = require('chai').expect;
@@ -11,17 +11,17 @@ const { origin } = new URL(serverInfo.server);
 const app = `${origin}/exist/apps/templating-test`;
 
 const axiosInstance = axios.create({
-  baseURL: app
+  baseURL: app,
 });
 
 describe('expand HTML template index.html', function () {
-  let document, res
+  let document, res;
 
   before(async function () {
-    res = await axiosInstance.get('index.html');  
-    const {window} = new JSDOM(res.data);
-    document = window.document
-  })
+    res = await axiosInstance.get('index.html');
+    const { window } = new JSDOM(res.data);
+    document = window.document;
+  });
 
   it('returns status ok', async function () {
     expect(res.status).to.equal(200);
@@ -35,32 +35,38 @@ describe('expand HTML template index.html', function () {
   });
 
   it('handles static parameters', async function () {
-      // statically defined parameter
+    // statically defined parameter
     expect(document.querySelector('h1.static-lang')).to.exist;
-    expect(document.querySelector('h1.static-lang').innerHTML).to.equal('Witam');
+    expect(document.querySelector('h1.static-lang').innerHTML).to.equal(
+      'Witam'
+    );
   });
 
   it('handles custom model items', async function () {
-    expect(document.querySelector('.custom').innerHTML).to.equal('Custom model item: xxx');
+    expect(document.querySelector('.custom').innerHTML).to.equal(
+      'Custom model item: xxx'
+    );
   });
 
   it('handles fallbacks', async function () {
-    expect(document.querySelector('.default-param').innerHTML).to.equal('fallback');
+    expect(document.querySelector('.default-param').innerHTML).to.equal(
+      'fallback'
+    );
   });
 });
 
 describe('expand HTML template index.html with language parameter set', function () {
-  let document, res
+  let document, res;
 
   before(async function () {
     res = await axiosInstance.get('index.html', {
       params: {
-        language: 'de'
-      }
+        language: 'de',
+      },
     });
     const { window } = new JSDOM(res.data);
-    document = window.document
-  })
+    document = window.document;
+  });
 
   it('request returns with status 200', async function () {
     expect(res.status).to.equal(200);
@@ -70,18 +76,22 @@ describe('expand HTML template index.html with language parameter set', function
   it('request parameter overwrites default', async function () {
     // default parameter value applies
     expect(document.querySelector('h1.no-lang')).to.exist;
-    expect(document.querySelector('h1.no-lang').innerHTML).to.equal('Willkommen');
+    expect(document.querySelector('h1.no-lang').innerHTML).to.equal(
+      'Willkommen'
+    );
   });
 
   it('request parameter overwrites static', async function () {
-      // statically defined parameter
+    // statically defined parameter
     expect(document.querySelector('h1.static-lang')).to.exist;
-    expect(document.querySelector('h1.static-lang').innerHTML).to.equal('Willkommen');
+    expect(document.querySelector('h1.static-lang').innerHTML).to.equal(
+      'Willkommen'
+    );
   });
 });
 
 describe('expand HTML template types.html', function () {
-  let document, res
+  let document, res;
 
   before(async function () {
     res = await axiosInstance.get('types.html', {
@@ -89,13 +99,13 @@ describe('expand HTML template types.html', function () {
         n1: 20,
         n2: 30.25,
         date: '2021-02-07+01:00',
-        boolean: 'true'
-      }
+        boolean: 'true',
+      },
     });
     const { window } = new JSDOM(res.data);
-    document = window.document
-  })
-  
+    document = window.document;
+  });
+
   it('returns with status OK', async function () {
     expect(res.status).to.equal(200);
     expect(document).to.be.ok;
@@ -117,56 +127,61 @@ describe('expand HTML template types.html', function () {
 });
 
 describe('expand HTML template types-fail.html', function () {
-
   it('rejects wrong parameter type', function () {
-    return axiosInstance.get('types-fail.html', {
-      params: {
-        n1: 'abc',
-        n2: 30.25,
-        date: '2021-02-07+01:00',
-        boolean: 'true'
-      }
-    })
-      .catch(error => {
+    return axiosInstance
+      .get('types-fail.html', {
+        params: {
+          n1: 'abc',
+          n2: 30.25,
+          date: '2021-02-07+01:00',
+          boolean: 'true',
+        },
+      })
+      .catch((error) => {
         expect(error.response.status).to.be.oneOf([400, 500]);
         expect(error.response.data).to.contain('templates:TypeError');
       });
   });
-
 });
 
 describe('expand HTML template missing-tmpl.html', function () {
-
-  it("reports missing template functions", async function () {
-		return axiosInstance.get("missing-tmpl.html")
-			.catch((error) => {
-				expect(error.response.status).to.be.oneOf([400, 500]);
-				expect(error.response.data).to.contain("templates:NotFound");
-			});
+  it('reports missing template functions', async function () {
+    return axiosInstance.get('missing-tmpl.html').catch((error) => {
+      expect(error.response.status).to.be.oneOf([400, 500]);
+      expect(error.response.data).to.contain('templates:NotFound');
+    });
   });
 });
 
-describe('Supports template nesting', function() {
-  it('handles nested templates', async function() {
-    const res = await axiosInstance.get('nesting.html');  
+describe('Supports template nesting', function () {
+  it('handles nested templates', async function () {
+    const res = await axiosInstance.get('nesting.html');
     expect(res.status).to.equal(200);
     const { window } = new JSDOM(res.data);
 
-    expect(window.document.querySelector('tr:nth-child(1) td[data-template="test:print-name"]').innerHTML).to.equal('Berta Muh');
-    expect(window.document.querySelector('tr:nth-child(2) td[data-template="test:print-street"]').innerHTML).to.equal('Am Zoo 45');
+    expect(
+      window.document.querySelector(
+        'tr:nth-child(1) td[data-template="test:print-name"]'
+      ).innerHTML
+    ).to.equal('Berta Muh');
+    expect(
+      window.document.querySelector(
+        'tr:nth-child(2) td[data-template="test:print-street"]'
+      ).innerHTML
+    ).to.equal('Am Zoo 45');
   });
 });
 
-describe('Supports form fields', function() {
-  it('injects form field values', async function() {
+describe('Supports form fields', function () {
+  it('injects form field values', async function () {
     const res = await axiosInstance.get('forms.html', {
       params: {
         param1: 'xxx',
         param2: 'value2',
         param3: true,
         param4: 'checkbox2',
-        param5: 'radio2'
-      }
+        param5: 'radio2',
+      },
     });
     expect(res.status).to.equal(200);
     const { window } = new JSDOM(res.data);
@@ -188,7 +203,7 @@ describe('Supports form fields', function() {
     expect(control4).to.have.length(2);
     expect(control4[0].checked).to.be.false;
     expect(control4[1].checked).to.be.true;
-    
+
     const control5 = window.document.querySelectorAll('input[name="param5"]');
     expect(control5).to.have.length(2);
     expect(control5[0].checked).to.be.false;
@@ -196,132 +211,126 @@ describe('Supports form fields', function() {
   });
 });
 
-describe('Supports set and unset param', function() {
-  it('supports set and unset with multiple params of the same name', async function() {
-    const res = await axiosInstance.get('set-unset-params.html?foo=bar&foo=baz'
-    // if URL parameters are supplied via params object, mocha will only send one param 
-    // of a given name, so we must include params in the query string
+describe('Supports set and unset param', function () {
+  it('supports set and unset with multiple params of the same name', async function () {
+    const res = await axiosInstance.get(
+      'set-unset-params.html?foo=bar&foo=baz'
+      // if URL parameters are supplied via params object, mocha will only send one param
+      // of a given name, so we must include params in the query string
     );
     expect(res.status).to.equal(200);
     const { window } = new JSDOM(res.data);
-    
+
     expect(window.document.querySelector('p#set')).to.exist;
-    });
+  });
 });
 
-describe("Supports parsing parameters", function () {
-	it("supports parsing parameters in attributes and text", async function () {
-		const res = await axiosInstance.get(
-			"parse-params.html",
-			{
-        params: {
-          description: 'my title',
-          link: 'foo'
-        }
-      }
-		);
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+describe('Supports parsing parameters', function () {
+  it('supports parsing parameters in attributes and text', async function () {
+    const res = await axiosInstance.get('parse-params.html', {
+      params: {
+        description: 'my title',
+        link: 'foo',
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
 
-    const link = window.document.querySelector("a");
+    const link = window.document.querySelector('a');
     expect(link).to.exist;
-		expect(link.title).to.equal('Link: my title');
+    expect(link.title).to.equal('Link: my title');
     expect(link.href).to.equal('/api/foo/');
-	});
+  });
 
-  it("supports expanding from model", async function () {
-		const res = await axiosInstance.get("parse-params.html", {
-			params: {
-				description: "my title",
-				link: "foo",
-			},
-		});
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+  it('supports expanding from model', async function () {
+    const res = await axiosInstance.get('parse-params.html', {
+      params: {
+        description: 'my title',
+        link: 'foo',
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
 
-		const para = window.document.getElementById('nested');
-		expect(para).to.exist;
-		expect(para.innerHTML).to.equal("Out: TEST2");
+    const para = window.document.getElementById('nested');
+    expect(para).to.exist;
+    expect(para.innerHTML).to.equal('Out: TEST2');
 
     const li = window.document.querySelectorAll('li');
     expect(li).to.have.lengthOf(2);
-    expect(li[0].innerHTML).to.equal("Berta Muh, Kuhweide");
-    expect(li[1].innerHTML).to.equal("Rudi Rüssel, Tierheim");
+    expect(li[0].innerHTML).to.equal('Berta Muh, Kuhweide');
+    expect(li[1].innerHTML).to.equal('Rudi Rüssel, Tierheim');
   });
 
-  it("fails gracefully", async function () {
-		const res = await axiosInstance.get("parse-params.html", {
-			params: {
-				description: "my title",
-				link: "foo",
-			},
-		});
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+  it('fails gracefully', async function () {
+    const res = await axiosInstance.get('parse-params.html', {
+      params: {
+        description: 'my title',
+        link: 'foo',
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
 
     const para = window.document.getElementById('default');
     expect(para).to.exist;
-    expect(para.innerHTML).to.equal("not found;not found;");
+    expect(para.innerHTML).to.equal('not found;not found;');
   });
 
-  it("serializes maps and arrays to JSON", async function () {
-		const res = await axiosInstance.get("parse-params.html", {
-			params: {
-				description: "my title",
-				link: "foo",
-			},
-		});
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+  it('serializes maps and arrays to JSON', async function () {
+    const res = await axiosInstance.get('parse-params.html', {
+      params: {
+        description: 'my title',
+        link: 'foo',
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
 
-		const para = window.document.getElementById("map");
-		expect(para).to.exist;
-		expect(para.innerHTML).to.equal('{"test":"TEST2"}');
+    const para = window.document.getElementById('map');
+    expect(para).to.exist;
+    expect(para.innerHTML).to.equal('{"test":"TEST2"}');
   });
 
-  it("handles different delimiters", async function () {
-		const res = await axiosInstance.get("parse-params.html", {
-			params: {
-				description: "my title"
-			},
-		});
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+  it('handles different delimiters', async function () {
+    const res = await axiosInstance.get('parse-params.html', {
+      params: {
+        description: 'my title',
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
 
-		let para = window.document.getElementById("delimiters1");
-		expect(para).to.exist;
-		expect(para.innerHTML).to.equal('my title');
+    let para = window.document.getElementById('delimiters1');
+    expect(para).to.exist;
+    expect(para.innerHTML).to.equal('my title');
 
-    para = window.document.getElementById("delimiters2");
-	  expect(para).to.exist;
-	  expect(para.innerHTML).to.equal("TITLE: my title");
+    para = window.document.getElementById('delimiters2');
+    expect(para).to.exist;
+    expect(para.innerHTML).to.equal('TITLE: my title');
   });
 });
 
-describe('Fail if template is missing', function() {
+describe('Fail if template is missing', function () {
   it('fails if template could not be found', function () {
-    return axiosInstance.get('template-missing.html')
-      .catch(error => {
-        expect(error.response.status).to.be.oneOf([400, 500]);
-        expect(error.response.data).to.contain('templates:NotFound');
-      });
+    return axiosInstance.get('template-missing.html').catch((error) => {
+      expect(error.response.status).to.be.oneOf([400, 500]);
+      expect(error.response.data).to.contain('templates:NotFound');
+    });
   });
 });
 
-describe("Supports including another file", function () {
-	it("replaces target blocks in included file", async function () {
-		const res = await axiosInstance.get(
-			"includes.html",
-			{
-        params: {
-          title: 'my title'
-        }
-      }
-		);
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+describe('Supports including another file', function () {
+  it('replaces target blocks in included file', async function () {
+    const res = await axiosInstance.get('includes.html', {
+      params: {
+        title: 'my title',
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
 
-    const items = window.document.querySelectorAll("li");
+    const items = window.document.querySelectorAll('li');
     expect(items).to.have.lengthOf(4);
     expect(items[0].getAttribute('title')).to.equal('my title');
     expect(items[0].innerHTML).to.equal('Block inserted at "start"');
@@ -330,16 +339,42 @@ describe("Supports including another file", function () {
   });
 });
 
-describe("Supports resolving app location", function() {
+describe('Supports resolving app location', function () {
   this.timeout(10000);
-  it("replaces variable with app URL", async function () {
-		const res = await axiosInstance.get("resolve-apps.html");
-		expect(res.status).to.equal(200);
-		const { window } = new JSDOM(res.data);
+  it('replaces variable with app URL', async function () {
+    const res = await axiosInstance.get('resolve-apps.html');
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
     let para = window.document.getElementById('test1');
-    expect(para.innerHTML).to.equal("/exist/apps/templating-test");
+    expect(para.innerHTML).to.equal('/exist/apps/templating-test');
 
-    para = window.document.getElementById("test2");
-	  expect(para.innerHTML).to.equal("/exist/404.html#");
+    para = window.document.getElementById('test2');
+    expect(para.innerHTML).to.equal('/exist/404.html#');
+  });
+});
+
+describe('Templates can be called from class', function () {
+  it('and will be expanded when $templates:CONFIG_USE_CLASS_SYNTAX is true()', async function () {
+    const res = await axiosInstance.get('call-from-class.html', {
+      params: {
+        classLookup: true,
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    expect(window.document.querySelector('p').innerHTML).to.equal(
+      'print-from-class'
+    );
+  });
+
+  it('and will not be expanded when $templates:CONFIG_USE_CLASS_SYNTAX is false()', async function () {
+    const res = await axiosInstance.get('call-from-class.html', {
+      params: {
+        classLookup: false,
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    expect(window.document.querySelector('p').innerHTML).to.equal('');
   });
 });
