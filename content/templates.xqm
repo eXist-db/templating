@@ -146,12 +146,19 @@ declare function templates:process($nodes as node()*, $model as map(*)) {
                                 return
                                     templates:call($instruction, $node, $model)
                             else
-                                element { node-name($node) } {
-                                    $node/@*, for $child in $node/node() return templates:process($child, $model)
-                                }
-                    else $node
+                                templates:process-children($node, $model)
+                    else templates:process-children($node, $model)
             default return
                 $node
+};
+
+declare %private function templates:process-children($node as node(), $model as map(*)) {
+    element { node-name($node) } {
+        $node/@*,
+        for $child in $node/node()
+        return
+            templates:process($child, $model)
+    }
 };
 
 declare %private function templates:get-instructions($class as xs:string?) as xs:string* {
