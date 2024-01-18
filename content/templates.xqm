@@ -94,6 +94,7 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
 
 declare %private function templates:get-default-config($resolver as function(xs:string, xs:integer) as item()?) as map(*) {
     map {
+        $templates:CONFIG_USE_CLASS_SYNTAX: $templates:SEARCH_IN_CLASS,
         $templates:CONFIG_FN_RESOLVER : $resolver,
         $templates:CONFIG_PARAM_RESOLVER : templates:lookup-param-from-restserver#1
     }
@@ -138,7 +139,7 @@ declare function templates:process($nodes as node()*, $model as map(*)) {
                 return
                     if ($dataAttr) then
                         templates:call($dataAttr, $node, $model)
-                    else if (($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX), $templates:SEARCH_IN_CLASS)[1]) then
+                    else if ($model?($templates:CONFIGURATION)?($templates:CONFIG_USE_CLASS_SYNTAX)) then
                         let $instructions := templates:get-instructions($node/@class)
                         return
                             if ($instructions) then
