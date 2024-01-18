@@ -1,5 +1,6 @@
 xquery version "3.1";
 
+
 (:~
  : HTML templating module
  :
@@ -9,7 +10,6 @@ xquery version "3.1";
  : @contributor Joe Wicentowski
 :)
 module namespace templates="http://exist-db.org/xquery/html-templating";
-
 import module namespace inspect="http://exist-db.org/xquery/inspection";
 import module namespace map="http://www.w3.org/2005/xpath-functions/map";
 import module namespace request="http://exist-db.org/xquery/request";
@@ -24,6 +24,7 @@ declare variable $templates:CONFIG_ROOT := "root";
 declare variable $templates:CONFIG_FN_RESOLVER := "fn-resolver";
 declare variable $templates:CONFIG_PARAM_RESOLVER := "param-resolver";
 declare variable $templates:CONFIG_FILTER_ATTRIBUTES := "filter-atributes";
+declare variable $templates:CONFIG_USE_CLASS_SYNTAX := "class-lookup";
 
 declare variable $templates:CONFIGURATION := "configuration";
 declare variable $templates:CONFIGURATION_ERROR := QName("http://exist-db.org/xquery/html-templating", "ConfigurationError");
@@ -34,6 +35,7 @@ declare variable $templates:TYPE_ERROR := QName("http://exist-db.org/xquery/html
 declare variable $templates:MAX_ARITY := 20;
 
 declare variable $templates:ATTR_DATA_TEMPLATE := "data-template";
+declare variable $templates:SEARCH_IN_CLASS := true();
 
 (:~
  : Start processing the provided content. Template functions are looked up by calling the
@@ -92,6 +94,7 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
 
 declare %private function templates:get-default-config($resolver as function(xs:string, xs:integer) as item()?) as map(*) {
     map {
+        $templates:CONFIG_USE_CLASS_SYNTAX: $templates:SEARCH_IN_CLASS,
         $templates:CONFIG_FN_RESOLVER : $resolver,
         $templates:CONFIG_PARAM_RESOLVER : templates:lookup-param-from-restserver#1
     }
@@ -136,7 +139,7 @@ declare function templates:process($nodes as node()*, $model as map(*)) {
                 return
                     if ($dataAttr) then
                         templates:call($dataAttr, $node, $model)
-                    else
+                    else if ($model?($templates:CONFIGURATION)?($templates:CONFIG_USE_CLASS_SYNTAX)) then
                         let $instructions := templates:get-instructions($node/@class)
                         return
                             if ($instructions) then
@@ -144,11 +147,19 @@ declare function templates:process($nodes as node()*, $model as map(*)) {
                                 return
                                     templates:call($instruction, $node, $model)
                             else
-                                element { node-name($node) } {
-                                    $node/@*, for $child in $node/node() return templates:process($child, $model)
-                                }
+                                templates:process-children($node, $model)
+                    else templates:process-children($node, $model)
             default return
                 $node
+};
+
+declare %private function templates:process-children($node as node(), $model as map(*)) {
+    element { node-name($node) } {
+        $node/@*,
+        for $child in $node/node()
+        return
+            templates:process($child, $model)
+    }
 };
 
 declare %private function templates:get-instructions($class as xs:string?) as xs:string* {
@@ -576,7 +587,7 @@ declare function templates:form-control($node as node(), $model as map(*)) as no
             return
                 if (exists($value)) then
                     switch ($type)
-                        case "checkbox" 
+                        case "checkbox"
                         case "radio" return
                             element { node-name($node) } {
                                 $node/@* except $node/@checked,
