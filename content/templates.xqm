@@ -293,7 +293,7 @@ declare function templates:surround (
         )
         else
             let $model := templates:surround-options($model, $options)
-            let $merged := templates:process-surround($content, $node, $at)
+            let $merged := templates:process-surround($template, $node, $at)
             return
                 templates:process-children($merged, $model)
 };
