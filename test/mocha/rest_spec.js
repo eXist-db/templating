@@ -343,3 +343,29 @@ describe("Supports resolving app location", function() {
 	  expect(para.innerHTML).to.equal("/exist/404.html#");
   });
 });
+
+describe('Templates can be called from class', function () {
+  it('and will be expanded when $templates:CONFIG_USE_CLASS_SYNTAX is true()', async function () {
+    const res = await axiosInstance.get('call-from-class.html', {
+      params: {
+        classLookup: true,
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    expect(window.document.querySelector('p').innerHTML).to.equal(
+      'print-from-class'
+    );
+  });
+
+  it('and will not be expanded when $templates:CONFIG_USE_CLASS_SYNTAX is false()', async function () {
+    const res = await axiosInstance.get('call-from-class.html', {
+      params: {
+        classLookup: false,
+      },
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    expect(window.document.querySelector('p').innerHTML).to.equal('');
+  });
+});

@@ -24,7 +24,7 @@ declare variable $test:app-root :=
         substring-before($modulePath, "/modules")
 ;
 
-declare 
+declare
     %templates:wrap
 function test:init-data($node as node(), $model as map(*)) {
     let $addresses := (
@@ -50,23 +50,23 @@ function test:init-data($node as node(), $model as map(*)) {
     }
 };
 
-declare 
+declare
     %templates:wrap
 function test:print-name($node as node(), $model as map(*)) {
     $model("address")?name
 };
-declare 
+declare
     %templates:wrap
 function test:print-city($node as node(), $model as map(*)) {
     $model("address")?city
 };
-declare 
+declare
     %templates:wrap
 function test:print-street($node as node(), $model as map(*)) {
     $model("address")?street
 };
 
-declare 
+declare
     %templates:wrap
     %templates:default("language", "en")
 function test:hello($node as node(), $model as map(*), $language as xs:string) {
@@ -79,26 +79,26 @@ function test:hello($node as node(), $model as map(*), $language as xs:string) {
             "Welcome"
 };
 
-declare 
+declare
     %templates:wrap
     %templates:default("defaultParam", "fallback")
 function test:default($node as node(), $model as map(*), $defaultParam as xs:string) {
     $defaultParam
 };
 
-declare 
+declare
     %templates:wrap
 function test:numbers($node as node(), $model as map(*), $n1 as xs:integer, $n2 as xs:double) {
     ($n1 treat as xs:integer) + ($n2 treat as xs:double)
 };
 
-declare 
+declare
     %templates:wrap
 function test:date($node as node(), $model as map(*), $date as xs:date) {
     day-from-date($date)
 };
 
-declare 
+declare
     %templates:wrap
 function test:boolean($node as node(), $model as map(*), $boolean as xs:boolean) {
     if ($boolean instance of xs:boolean) then
@@ -111,10 +111,17 @@ declare function test:custom-model($node as node(), $model as map(*)) {
     $model?('my-model-item')
 };
 
+declare
+    %templates:wrap
+function test:print-from-class($node as node(), $model as map(*)) {
+    'print-from-class'
+};
 let $config := map {
     $templates:CONFIG_APP_ROOT : $test:app-root,
-    $templates:CONFIG_STOP_ON_ERROR: true()
+    $templates:CONFIG_STOP_ON_ERROR: true(),
+    $templates:CONFIG_USE_CLASS_SYNTAX: xs:boolean(request:get-parameter('classLookup', $templates:SEARCH_IN_CLASS))
 }
+
 let $lookup := function($name as xs:string, $arity as xs:integer) {
     try {
         function-lookup(xs:QName($name), $arity)
