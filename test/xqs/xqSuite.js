@@ -42,9 +42,7 @@ http.get(url, (res) => {
     // see https://github.com/mochajs/mocha/issues/995
     // see https://mochajs.org/api/mocha#unloadFiles
     let suiteRun = mochaInstance.cleanReferencesAfterRun(true).run()
-    process.on('exit', () => {
-      process.exit(suiteRun.stats.failures > 0)
-    })
+    process.on('exit', () => process.exitCode = suiteRun.stats.failures ?? 0)
   })
 }).on('error', (err) => {
   console.log('Error: ', err.message)
