@@ -34,6 +34,9 @@ const static = [
     "test/xqs/*{.xq,.xqm}"
 ]
 
+// where to store XARs
+const dist = 'dist'
+
 // test application metadata
 const testAppNs = "http://exist-db.org/html-templating-test"
 const testAppFiles = ['test/app/*.*', "test/app/modules/*"]
@@ -46,7 +49,7 @@ const packageName = () => `${package.target}-${version}.xar`
  * helper function that uploads and installs a built XAR
  */
 function installXar (packageName, packageUri) {
-    return src(packageName)
+    return src(packageName, { cwd: dist })
         .pipe(existClient.install({ packageUri }))
 }
 
@@ -68,7 +71,7 @@ exports['clean:test'] = cleanTest
  * Use the `delete` module directly, instead of using gulp-rimraf
  */
 function cleanAll (cb) {
-    del(['build', 'test/app/build'], cb);
+    del(['build', 'test/app/build', 'dist'], cb);
 }
 exports['clean:all'] = cleanAll
 
@@ -122,7 +125,7 @@ function watchBuild () {
 function xar () {
     return src('build/**/*', {base: 'build'})
         .pipe(zip(packageName()))
-        .pipe(dest('.'))
+        .pipe(dest(dist))
 }
 
 /**
@@ -131,7 +134,7 @@ function xar () {
 function packageTestApp () {
     return src(testAppFiles, {base: 'test/app'})
         .pipe(zip(testAppPackageName))
-        .pipe(dest('.'))
+        .pipe(dest(dist))
 }
 exports["build:test"] = series(cleanTest, packageTestApp)
 
