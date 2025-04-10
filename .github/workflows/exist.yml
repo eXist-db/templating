@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
        matrix:
-         exist-version: [5.2.0, 5.4.1, release, latest]
-         node-version: [16]
+         exist-version: [5.2.0, 5.4.1, 6.0.1, release, latest]
+         node-version: [22]
     services:
       # Label used to access the service container
       exist:
@@ -34,7 +34,7 @@ jobs:
       - run: npm ci
       
       # Testing 
-      - name: Run Unit Tests     
+      - name: Run Unit Tests
         run: npm test
   
   # TODO: Add upload to dockerhub   
