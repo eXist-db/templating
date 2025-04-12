@@ -345,6 +345,17 @@ describe("Supports resolving app location", function() {
 });
 
 describe('Templates can be called from class', function () {
+  it('and will be expanded when $templates:CONFIG_USE_CLASS_SYNTAX is not set', async function () {
+    const res = await axiosInstance.get('call-from-class.html', {
+      params: {},
+    });
+    expect(res.status).to.equal(200);
+    const { window } = new JSDOM(res.data);
+    expect(window.document.querySelector('p').innerHTML).to.equal(
+      'print-from-class'
+    );
+  });
+
   it('and will be expanded when $templates:CONFIG_USE_CLASS_SYNTAX is true()', async function () {
     const res = await axiosInstance.get('call-from-class.html', {
       params: {

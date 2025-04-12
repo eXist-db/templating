@@ -76,14 +76,12 @@ declare function templates:apply($content as node()+, $resolver as function(xs:s
     let $_model := if (exists($model)) then $model else map {}
     let $configuration :=
         if (exists($configuration)) then
-            map:merge((
-                $configuration,
-                map:entry($templates:CONFIG_FN_RESOLVER, $resolver),
-                if (map:contains($configuration, $templates:CONFIG_PARAM_RESOLVER)) then
-                    ()
-                else
-                    map:entry($templates:CONFIG_PARAM_RESOLVER, templates:lookup-param-from-restserver#1)
-            ))
+            let $defaults := templates:get-default-config($resolver)
+            return fold-left(map:keys($defaults), $configuration, function ($result, $next-default-key) {
+                if (map:contains($result, $next-default-key)) then $result else (
+                    map:put($result, $next-default-key, $defaults($next-default-key))
+                )
+            })
         else
             templates:get-default-config($resolver)
     let $__model := map:merge(($_model, map:entry($templates:CONFIGURATION, $configuration)))
