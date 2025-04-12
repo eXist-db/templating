@@ -116,11 +116,22 @@ declare
 function test:print-from-class($node as node(), $model as map(*)) {
     'print-from-class'
 };
+
 let $config := map {
     $templates:CONFIG_APP_ROOT : $test:app-root,
-    $templates:CONFIG_STOP_ON_ERROR: true(),
-    $templates:CONFIG_USE_CLASS_SYNTAX: xs:boolean(request:get-parameter('classLookup', $templates:SEARCH_IN_CLASS))
+    $templates:CONFIG_STOP_ON_ERROR: true()
 }
+
+(: read request parameter first in order to test three states
+ : true, false and unset / default
+ :)
+let $class-syntax-option := request:get-parameter('classLookup', ())
+let $config-with-class-syntax-maybe-set := 
+    if (empty($class-syntax-option)) then (
+        $config
+    ) else (
+        map:put($config, $templates:CONFIG_USE_CLASS_SYNTAX, xs:boolean($class-syntax-option))
+    )
 
 let $lookup := function($name as xs:string, $arity as xs:integer) {
     try {
@@ -135,4 +146,4 @@ let $lookup := function($name as xs:string, $arity as xs:integer) {
  :)
 let $content := request:get-data()
 return
-    templates:apply($content, $lookup, map { "my-model-item": 'xxx' }, $config)
+    templates:apply($content, $lookup, map { "my-model-item": 'xxx' }, $config-with-class-syntax-maybe-set)
