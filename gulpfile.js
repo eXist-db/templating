@@ -39,7 +39,7 @@ const dist = 'dist'
 
 // test application metadata
 const testAppNs = "http://exist-db.org/html-templating-test"
-const testAppFiles = ['test/app/*.*', "test/app/modules/*"]
+const testAppFiles = ['test/app/**/*']
 const testAppPackageName = "test-templating.xar"
 
 // construct the current xar name from available data
