@@ -858,35 +858,40 @@ function templates:get-template-function (
 ) as function(*)? {
     let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
     return
-        if (empty($attr)) then (
-            if ($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX) and $node/@class) then (
-                util:log("info", ("found qnames in class attribute", tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])),
-                let $first-qname-match := head(tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])
-                return if (empty($first-qname-match)) then () else
-                    tmpl-util:resolve-fn(
-                        $first-qname-match, 
-                        $model($templates:CONFIGURATION)($templates:CONFIG_FN_RESOLVER),
-                        $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY)
-                    )
-            ) else ()
-        )
-        else
-            let $f := tmpl-util:resolve-fn($attr/string(), 
-                $model($templates:CONFIGURATION)($templates:CONFIG_FN_RESOLVER),
-                $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY)
+        if (empty($attr) and (
+                not($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX))
+                or empty($node/@class)
             )
+        ) then (
+            (: nothing to do :)
+        ) else (
+            let $qname :=
+                if (exists($attr)) then (
+                    $attr/string()
+                ) else (
+                    head(
+                        tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])
+                )
+
+            let $f := if (empty($qname)) then () else
+                tmpl-util:resolve-fn(
+                    $qname,
+                    $model($templates:CONFIGURATION)($templates:CONFIG_FN_RESOLVER),
+                    $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY))
+
             return
-                if (templates:do-stop(empty($f), $model))
+                if (exists($qname) and empty($f) and templates:do-stop(empty($f), $model))
                 then
                     error($templates:E_FN_NOT_FOUND,
                         "Error Processing node: " || serialize($node) ||
                         " Reason: &#10;" ||
-                        "No template function found for call " || $attr ||
+                        "No template function found for call " || $qname ||
                         " (Maximum arity is set to " ||
                         $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY) ||
                         ". You can set a higher maximum arity using " ||
                         "$templates:CONFIG_MAX_ARITY in your configuration.)")
                 else $f
+        )
 };
 
 declare %private
