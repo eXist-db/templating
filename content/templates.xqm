@@ -264,13 +264,17 @@ declare function templates:each (
     $node as node(), $model as map(*),
     $from as xs:string, $to as xs:string
 ) as element()* {
-    for $item in $model($from)
+    let $list := $model?($from)
+    let $sequence := if ($list instance of array(*)) then $list?* else $list
+
     return
-        element { node-name($node) } {
-            templates:filter-attributes($node, $model),
-            templates:process-children($node/node(),
-                map:put($model, $to, $item))
-        }
+        for $item in $sequence
+        return
+            element { node-name($node) } {
+                templates:filter-attributes($node, $model),
+                templates:process-children($node/node(),
+                    map:put($model, $to, $item))
+            }
 };
 
 declare function templates:surround (
