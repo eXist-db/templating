@@ -6,7 +6,6 @@ const expect = require('chai').expect
 const fs = require('fs-extra')
 const glob = require('glob')
 const xmldoc = require('xmldoc')
-const assert = require('yeoman-assert')
 
 // this is not equivalent to using a real xml parser
 describe('file system checks', function () {
