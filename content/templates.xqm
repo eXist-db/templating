@@ -33,6 +33,7 @@ declare variable $templates:CONFIG_USE_CLASS_SYNTAX := "class-lookup";
 declare variable $templates:CONFIG_MAX_ARITY := "max-arity";
 declare variable $templates:CONFIG_START_DELIMITER := "start-delimiter";
 declare variable $templates:CONFIG_END_DELIMITER := "end-delimiter";
+declare variable $templates:CONFIG_ATTR_PREFIX := "attribute-prefix";
 
 declare variable $templates:PLACEHOLDER_CHECK := "placeholder-check";
 declare variable $templates:PLACEHOLDER_REPLACE := "placeholder-replace";
@@ -84,7 +85,7 @@ declare variable $templates:DEFAULT_CONFIG := map {
     $templates:CONFIG_FILTER_ATTRIBUTES : false(),
     $templates:CONFIG_START_DELIMITER: '\$\{',
     $templates:CONFIG_END_DELIMITER: '\}',
-    $templates:ATTR_FILTER_FUNCTION : templates:all-attributes#1
+    $templates:ATTR_FILTER_FUNCTION : templates:all-attributes#2
 };
 
 (:~
@@ -257,7 +258,7 @@ declare function templates:include (
         )
         else
             templates:process-children(
-                templates:expand-blocks($node, $template), $model)
+                templates:expand-blocks($node, $model, $template), $model)
 };
 
 declare function templates:each (
@@ -475,26 +476,26 @@ declare %private
 function templates:filter-attributes (
     $node as node(), $model as map(*)
 ) as attribute()* {
-    $model($templates:CONFIGURATION)($templates:ATTR_FILTER_FUNCTION)($node)
+    let $config := $model($templates:CONFIGURATION)
+    let $prefix := head(($config($templates:CONFIG_ATTR_PREFIX), $templates:ATTR_DATA_TEMPLATE))
+    return $config($templates:ATTR_FILTER_FUNCTION)($node, $prefix)
 };
 
 declare %private
-function templates:filtered-attributes ($node as node()) as attribute()* {
-    $node/@*[not(templates:is-template-attribute(.))]
+function templates:filtered-attributes ($node as node(), $prefix as xs:string?) as attribute()* {
+    $node/@*[not(templates:is-template-attribute(., $prefix))]
 };
 
 declare %private
-function templates:all-attributes ($node as node()) as attribute()* {
+function templates:all-attributes ($node as node(), $_) as attribute()* {
     $node/@*
 };
 
 declare %private
 function templates:is-template-attribute (
-    $attribute as attribute()
+    $attribute as attribute(), $prefix as xs:string
 ) as xs:boolean {
-    starts-with(
-        local-name($attribute),
-        $templates:ATTR_DATA_TEMPLATE)
+    starts-with(local-name($attribute), $prefix)
 };
 
 declare %private
@@ -571,7 +572,10 @@ function templates:copy-node (
 ) as element() {
     element { node-name($node) } {
         templates:expand-attributes(
-            templates:filtered-attributes($node), $model),
+            templates:filtered-attributes($node, head((
+                $model($templates:CONFIGURATION)($templates:CONFIG_ATTR_PREFIX),
+                $templates:ATTR_DATA_TEMPLATE
+            ))), $model),
         templates:process-children($node/node(), $model)
     }
 };
@@ -691,17 +695,27 @@ function templates:handle-matches (
  :)
 declare %private
 function templates:expand-blocks (
-    $context as node(), $included as document-node()
+    $context as node(), $model as map(*), $included as document-node()
 ) as node()* {
-    let $blocks :=
-        for $blocks in $context/element()[@data-target]
-        group by $name := $blocks/@data-target
-        return
-            map { $name : $blocks }
+    let $grouped-blocks := 
+        if (empty($model($templates:CONFIGURATION)($templates:CONFIG_ATTR_PREFIX))) then (
+            for $blocks in $context/element()[@data-target]
+            group by $name := $blocks/@data-target
+            return
+                map { $name : $blocks }
+        ) else (
+            let $target-attribute-name := $model($templates:CONFIGURATION)($templates:CONFIG_ATTR_PREFIX) || "target"
+            return
+                for $blocks in $context/element()/@*[local-name(.) eq $target-attribute-name]/..
+                let $target-attribute := $blocks/@*[local-name(.) eq $target-attribute-name]
+                group by $name := $target-attribute/string()
+                return
+                    map { $name : $blocks }
+        )
 
     return
         templates:expand-blocks-recursive(
-            map:merge($blocks), $included/node())
+            map:merge($grouped-blocks), $included/node())
 };
 
 declare %private
@@ -773,8 +787,8 @@ function templates:map-configuration-options (
         return map {
             $templates:ATTR_FILTER_FUNCTION :
               if ($value)
-              then templates:filtered-attributes#1
-              else templates:all-attributes#1
+              then templates:filtered-attributes#2
+              else templates:all-attributes#2
         }
 
         default return map { $key : $value }
@@ -841,7 +855,12 @@ function templates:process-text ($node as text(), $model as map(*)) as text() {
 declare %private
 function templates:process-element ($node as node(), $model as map(*)) {
     let $config := $model($templates:CONFIGURATION)
-    let $tmpl-func := templates:get-template-function($node, $model)
+    let $tmpl-func :=
+        if ($config($templates:CONFIG_ATTR_PREFIX)) then (
+            templates:get-template-function($node, $model)
+        ) else (
+            templates:get-template-function-legacy($node, $model)
+        )
     return
         if (empty($tmpl-func)) then
             (: Templating function not found: just copy the element :)
@@ -860,7 +879,41 @@ declare %private
 function templates:get-template-function (
     $node as element(), $model as map(*)
 ) as function(*)? {
-    let $attr := $node/@*[local-name(.) = $templates:ATTR_DATA_TEMPLATE]
+    let $config := $model($templates:CONFIGURATION)
+    let $attr := $node/@*[local-name(.) eq $config($templates:CONFIG_ATTR_PREFIX) || "fn"]
+    return
+        if (empty($attr)) then ((: nothing to do :)
+        ) else (
+            let $f := tmpl-util:resolve-fn(
+                    $attr/string(),
+                    $config($templates:CONFIG_FN_RESOLVER),
+                    $config($templates:CONFIG_MAX_ARITY))
+
+            return
+                if (empty($f) and templates:do-stop(empty($f), $model))
+                then
+                    error($templates:E_FN_NOT_FOUND,
+                        "Error Processing node: " || serialize($node) ||
+                        " Reason: &#10;" ||
+                        "No template function found for call " || $attr/string() ||
+                        " (Maximum arity is set to " ||
+                        $config($templates:CONFIG_MAX_ARITY) ||
+                        ". You can set a higher maximum arity using " ||
+                        "$templates:CONFIG_MAX_ARITY in your configuration.)")
+                else $f
+        )
+};
+
+(:~
+ : Check if the current $node has a template function attribute declared.
+ : An exception is thrown when the function could not be found and
+ : $templates:CONFIG_STOP_ON_ERROR is set to true
+ :)
+declare %private
+function templates:get-template-function-legacy (
+    $node as element(), $model as map(*)
+) as function(*)? {
+    let $attr := $node/@*[local-name(.) eq $templates:ATTR_DATA_TEMPLATE]
     return
         if (empty($attr) and (
                 not($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX))
@@ -907,7 +960,13 @@ function templates:call-by-introspection (
 ) {
     let $inspect := inspect:inspect-function($fn)
     let $param-lookup := $config($templates:CONFIG_PARAM_RESOLVER)
-    let $parameters := templates:parameters-from-attr($node)
+    let $parameters := 
+        if (map:contains($config, $templates:CONFIG_ATTR_PREFIX)) then (
+            templates:parameters-from-attr($node, $config)
+        ) else (
+            templates:parameters-from-attr-legacy($node)
+        )
+
     let $args := templates:map-arguments(
         $inspect/argument, $parameters, $param-lookup)
     let $output := apply($fn, array:join(([ $node, $model ], $args)))
@@ -995,19 +1054,39 @@ function templates:arg-from-annotation (
 };
 
 declare %private
-function templates:parameters-from-attr ($node as node()) as map(*) {
+function templates:parameters-from-attr-legacy ($node as node()) as map(*) {
     map:merge(
-        for $attr in $node/@*[templates:is-template-attribute(.)]
-        return templates:parse-attr($attr)
+        for $attr in $node/@*[templates:is-template-attribute(., $templates:ATTR_DATA_TEMPLATE)]
+        return templates:parse-attr-legacy($attr)
     )
 };
 
 declare %private
-function templates:parse-attr (
+function templates:parameters-from-attr (
+    $node as node(), $config as map(*)
+) as map(*) {
+    map:merge(
+        for $attr in $node/@*[templates:is-template-attribute(., $config($templates:CONFIG_ATTR_PREFIX))]
+        return templates:parse-attr($attr, $config)
+    )
+};
+
+declare %private
+function templates:parse-attr-legacy (
     $attr as attribute()
 ) as map(xs:string, xs:string) {
-    let $key := substring-after(
-        local-name($attr), $templates:ATTR_DATA_TEMPLATE || "-")
-    let $value := $attr/string()
-    return map { $key : $value }
+    let $key :=
+        substring-after(
+            local-name($attr), $templates:ATTR_DATA_TEMPLATE || "-")
+    return map { $key : $attr/string() }
+};
+
+declare %private
+function templates:parse-attr (
+    $attr as attribute(), $config as map(*)
+) as map(xs:string, xs:string) {
+    let $key := 
+        substring-after(
+            local-name($attr), $config($templates:CONFIG_ATTR_PREFIX) || 'arg-')
+    return map { $key : $attr/string() }
 };
