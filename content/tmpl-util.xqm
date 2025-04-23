@@ -33,34 +33,24 @@ function tmpl-util:cast ($values as item()*, $targetType as xs:string) {
 };
 
 declare
-function tmpl-util:first-result ($fns as function(*)*, $arg) as item()* {
-    (: fold-left with no context :)
-    (: fold-left($fns, (), function ($res, $next) {
-        if (exists($res)) then $res else $next($arg)
-    }) :)
-
-    (: fold-left with dynamic context :)
-    (: fold-left($fns, [$arg, ()], tut:resolve-reducer#2)?2 :)
-
-    (: recursion :)
-    if (empty($fns)) then ()
-    else
+function tmpl-util:first-result ($fns as function(*)*, $arg as item()*) as item()* {
+    if (empty($fns)) then (
+    ) else (
         let $result := head($fns)($arg)
         return
-            if (exists($result)) then $result
-            else tmpl-util:first-result(tail($fns), $arg)
+            if (exists($result)) then (
+                $result
+            ) else (
+                tmpl-util:first-result(tail($fns), $arg)
+            )
+    )
 };
 
-declare %private
-function tmpl-util:resolve-reducer ($acc, $next) {
-    if (exists($acc?2)) then $acc
-    else array:put($acc, 2, $next($acc?1))
-};
-
-(: unused :)
 declare
-function tmpl-util:is-qname ($class as xs:string) as xs:boolean {
-    matches($class, "^[^:]+:[^:]+")
+function tmpl-util:first-qname-like ($class as attribute(class)) as xs:string? {
+    head(
+        tokenize($class, "\s+")
+            [matches(., "^[^:]+:[^:]+")])
 };
 
 declare

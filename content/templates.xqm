@@ -919,10 +919,12 @@ declare %private
 function templates:get-template-function-legacy (
     $node as element(), $model as map(*)
 ) as function(*)? {
+    let $config := $model($templates:CONFIGURATION)
     let $attr := $node/@*[local-name(.) eq $templates:ATTR_DATA_TEMPLATE]
     return
-        if (empty($attr) and (
-                not($model($templates:CONFIGURATION)($templates:CONFIG_USE_CLASS_SYNTAX))
+        if (
+            empty($attr) and (
+                not($config($templates:CONFIG_USE_CLASS_SYNTAX))
                 or empty($node/@class)
             )
         ) then (
@@ -932,15 +934,14 @@ function templates:get-template-function-legacy (
                 if (exists($attr)) then (
                     $attr/string()
                 ) else (
-                    head(
-                        tokenize($node/@class, "\s+")[matches(., "^[^:]+:[^:]+")])
+                    tmpl-util:first-qname-like($node/@class)
                 )
 
             let $f := if (empty($qname)) then () else
                 tmpl-util:resolve-fn(
                     $qname,
-                    $model($templates:CONFIGURATION)($templates:CONFIG_FN_RESOLVER),
-                    $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY))
+                    $config($templates:CONFIG_FN_RESOLVER),
+                    $config($templates:CONFIG_MAX_ARITY))
 
             return
                 if (exists($qname) and empty($f) and templates:do-stop(empty($f), $model))
@@ -950,7 +951,7 @@ function templates:get-template-function-legacy (
                         " Reason: &#10;" ||
                         "No template function found for call " || $qname ||
                         " (Maximum arity is set to " ||
-                        $model($templates:CONFIGURATION)($templates:CONFIG_MAX_ARITY) ||
+                        $config($templates:CONFIG_MAX_ARITY) ||
                         ". You can set a higher maximum arity using " ||
                         "$templates:CONFIG_MAX_ARITY in your configuration.)")
                 else $f
@@ -966,12 +967,14 @@ function templates:call-by-introspection (
 ) {
     let $inspect := inspect:inspect-function($fn)
     let $param-lookup := $config($templates:CONFIG_PARAM_RESOLVER)
-    let $parameters := 
+    let $attribute-prefix :=
         if (map:contains($config, $templates:CONFIG_ATTR_PREFIX)) then (
-            templates:parameters-from-attr($node, $config)
+            $config($templates:CONFIG_ATTR_PREFIX) || "arg-"
         ) else (
-            templates:parameters-from-attr-legacy($node)
+            $templates:ATTR_DATA_TEMPLATE || "-"
         )
+
+    let $parameters := templates:parameters-from-attributes($node/@*, $attribute-prefix)
 
     let $args := templates:map-arguments(
         $inspect/argument, $parameters, $param-lookup)
@@ -1060,39 +1063,12 @@ function templates:arg-from-annotation (
 };
 
 declare %private
-function templates:parameters-from-attr-legacy ($node as node()) as map(*) {
-    map:merge(
-        for $attr in $node/@*[templates:is-template-attribute(., $templates:ATTR_DATA_TEMPLATE)]
-        return templates:parse-attr-legacy($attr)
-    )
-};
-
-declare %private
-function templates:parameters-from-attr (
-    $node as node(), $config as map(*)
+function templates:parameters-from-attributes (
+    $attributes as attribute()*, $prefix as xs:string
 ) as map(*) {
     map:merge(
-        for $attr in $node/@*[templates:is-template-attribute(., $config($templates:CONFIG_ATTR_PREFIX))]
-        return templates:parse-attr($attr, $config)
+        for $attribute in $attributes[templates:is-template-attribute(., $prefix)]
+        let $key := substring-after(local-name($attribute), $prefix)
+        return map { $key : $attribute/string() }
     )
-};
-
-declare %private
-function templates:parse-attr-legacy (
-    $attr as attribute()
-) as map(xs:string, xs:string) {
-    let $key :=
-        substring-after(
-            local-name($attr), $templates:ATTR_DATA_TEMPLATE || "-")
-    return map { $key : $attr/string() }
-};
-
-declare %private
-function templates:parse-attr (
-    $attr as attribute(), $config as map(*)
-) as map(xs:string, xs:string) {
-    let $key := 
-        substring-after(
-            local-name($attr), $config($templates:CONFIG_ATTR_PREFIX) || 'arg-')
-    return map { $key : $attr/string() }
 };
