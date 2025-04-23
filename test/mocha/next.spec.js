@@ -30,7 +30,7 @@ describe('next templating', function () {
   });
 
   it('handles static parameters', async function () {
-    const el = document.querySelector('h1[class="static:lang"]')
+    const el = document.querySelector('h2[class="static:lang"]')
     expect(el).to.exist;
     expect(el.innerHTML).to.equal('Witam');
   });

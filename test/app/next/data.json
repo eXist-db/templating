@@ -1,6 +1,9 @@
 {
     "title": "Pagetitle",
     "headline": "Render Addresses",
+    "includes": {
+        "menubar": "next/_menubar.html"
+    },
     "addresses": [
         {
             "name": "Berta Muh",
