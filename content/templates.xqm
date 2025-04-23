@@ -872,6 +872,9 @@ function templates:process-element ($node as node(), $model as map(*)) {
 
 (:~
  : Check if the current $node has a template function attribute declared.
+ : If the CONFIG_ATTR_PREFIX is "t-" then the value of @t-fn is treated
+ : as the qname of a template function to call.
+ :
  : An exception is thrown when the function could not be found and
  : $templates:CONFIG_STOP_ON_ERROR is set to true
  :)
@@ -905,7 +908,10 @@ function templates:get-template-function (
 };
 
 (:~
- : Check if the current $node has a template function attribute declared.
+ : This is the legacy version to retrieve template functions
+ : Check if the current $node has a attribute "data-template"
+ : If class syntax is allowed fall back to parse @class attributes : 
+ :
  : An exception is thrown when the function could not be found and
  : $templates:CONFIG_STOP_ON_ERROR is set to true
  :)
