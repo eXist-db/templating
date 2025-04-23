@@ -1,11 +1,13 @@
 <html>
     <head>
-        <title>Test Parsing Parameters</title>
+        <title>${title}</title>
     </head>
     <body>
-        <div data-template="lib:include" data-template-path="included.html">
+        <div data-template="templates:include" data-template-path="included.html">
             <li data-target="end">Block inserted at "end"</li>
-            <li data-target="start" data-template="lib:parse-params" title="${title}">Block inserted at "start"</li>
+            <li data-target="start" title="${title}">Block inserted at "start"</li>
         </div>
+        <!-- include template from module -->
+        <div data-template="templates:include" data-template-path="${includes?menubar}"></div>
     </body>
 </html>

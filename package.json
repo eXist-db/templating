@@ -26,8 +26,7 @@
 		"gulp-zip": "^5.0.2",
 		"jsdom": "^16.4.0",
 		"mocha": "^10.1.0",
-		"xmldoc": "^1.1.2",
-		"yeoman-assert": "^3.1.1"
+		"xmldoc": "^1.1.2"
 	},
 	"author": {
 		"name": "The eXist-db Authors"
@@ -35,7 +34,9 @@
 	"license": "LGPL-2.1",
 	"scripts": {
 		"start": "npm install && npm run build",
-		"test": "gulp install:all && mocha test/mocha --recursive --exit && node test/xqs/xqSuite.js",
+		"test": "gulp install:all && npm run test:mocha && npm run test:xqsuite",
+		"test:mocha": "mocha test/mocha --recursive --exit",
+		"test:xqsuite": "node test/xqs/xqSuite.js",
 		"test:watch": "mocha test/mocha --recursive --watch",
 		"build": "gulp build",
 		"build:all": "gulp build:all"

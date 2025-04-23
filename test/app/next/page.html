@@ -1,0 +1,20 @@
+<html>
+    <head>
+        <title>${title}</title>
+    </head>
+    <body>
+        <nav τ-fn="templates:include" τ-arg-path="${includes?menubar}">
+            <li τ-target="end">Block inserted at "end"</li>
+            <li τ-target="start" title="Block inserted at 'start'">${title}</li>
+        </nav>
+        <main>
+            <h1>${headline}</h1>
+            <h2 class="static:lang" τ-fn="test:hello" τ-arg-language="pl"></h2>
+            <pre τ-fn="templates:each" τ-arg-from="addresses" τ-arg-to="address"><address>
+${address?name}
+${address?street}
+${address?city}
+        </address></pre>
+        </main>
+    </body>
+</html>

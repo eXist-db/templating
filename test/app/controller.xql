@@ -17,6 +17,11 @@ else if ($exist:path eq "/") then
         <redirect url="index.html"/>
     </dispatch>
 
+else if ($exist:path = ("/next", "/next/")) then
+    <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
+        <forward url="{$exist:controller}/next/render.xq" />
+    </dispatch>
+
 else
     <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
         <view>

@@ -1,0 +1,19 @@
+{
+    "title": "Pagetitle",
+    "headline": "Render Addresses",
+    "includes": {
+        "menubar": "next/_menubar.html"
+    },
+    "addresses": [
+        {
+            "name": "Berta Muh",
+            "street": "An der Viehtränke 13",
+            "city": "Kuhweide"
+        },
+        {
+            "name": "Rudi Rüssel",
+            "street": "Am Zoo 45",
+            "city": "Tierheim"
+        }
+    ]
+}
